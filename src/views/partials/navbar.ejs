@@ -20,6 +20,14 @@
           </a>
         </li>
       </ul>
+      <div class="d-flex align-items-center gap-2">
+        <label for="themeSelect" class="form-label mb-0 text-body-secondary small"><i class="bi bi-circle-half"></i></label>
+        <select id="themeSelect" class="form-select form-select-sm" style="width: auto;"
+            onchange="toggleDarkMode(this.value === 'dark')">
+          <option value="light">Claro</option>
+          <option value="dark">Oscuro</option>
+        </select>
+      </div>
     </div>
   </div>
 </nav>

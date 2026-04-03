@@ -2,14 +2,6 @@
 <div class="mt-3 p-3">
         <div class="d-flex align-items-center justify-content-between flex-wrap gap-2">
             <h3 class="mb-0"><i class="bi bi-gear"></i> Configuración</h3>
-            <div class="d-flex align-items-center gap-2">
-                <label for="themeSelect" class="form-label mb-0"><i class="bi bi-circle-half"></i> Tema</label>
-                <select id="themeSelect" class="form-select form-select-sm" style="width: auto;"
-                    onchange="toggleDarkMode(this.value === 'dark')">
-                    <option value="light">Claro</option>
-                    <option value="dark">Oscuro</option>
-                </select>
-            </div>
         </div>
         <hr>
         <form id="frmGlobalConfig" class="row g-3">
@@ -53,30 +45,8 @@
     <%- include('fileExplorerModal') %>
 
 <script>
-    // Aplica el tema (claro u oscuro) actualizando data-bs-theme y clases del body.
-    function applyTheme(isDark) {
-        const html = document.documentElement;
-        const body = document.body;
-        const selectEl = document.getElementById('themeSelect');
-
-        html.setAttribute('data-bs-theme', isDark ? 'dark' : 'light');
-        body.classList.toggle('bg-dark', isDark);
-        body.classList.toggle('bg-light', !isDark);
-        if (selectEl) selectEl.value = isDark ? 'dark' : 'light';
-    }
-
-    // Alterna el modo, lo persiste en localStorage y lo guarda en el archivo de configuración.
-    function toggleDarkMode(isDark) {
-        const theme = isDark ? 'dark' : 'light';
-        localStorage.setItem('theme', theme);
-        applyTheme(isDark);
-        request('/api/theme', 'POST', { theme }, function () {});
-    }
-
     document.addEventListener('DOMContentLoaded', function () {
         loadGlobalConfig();
-        const savedTheme = localStorage.getItem('theme') || 'light';
-        applyTheme(savedTheme === 'dark');
     });
 
 

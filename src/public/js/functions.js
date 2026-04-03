@@ -173,4 +173,22 @@ function hideLoading() {
     document.getElementById("loading").style.display = "none";
 }
 
+function applyTheme(isDark) {
+    document.documentElement.dataset.bsTheme = isDark ? 'dark' : 'light';
+    const selectEl = document.getElementById('themeSelect');
+    if (selectEl) selectEl.value = isDark ? 'dark' : 'light';
+}
+
+function toggleDarkMode(isDark) {
+    const theme = isDark ? 'dark' : 'light';
+    localStorage.setItem('theme', theme);
+    applyTheme(isDark);
+    request('/api/theme', 'POST', { theme }, function () {});
+}
+
+document.addEventListener('DOMContentLoaded', function () {
+    const savedTheme = localStorage.getItem('theme') || 'light';
+    applyTheme(savedTheme === 'dark');
+});
+
 initIziToastDefaults();
