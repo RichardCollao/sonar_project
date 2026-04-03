@@ -100,14 +100,11 @@ async function writeBundle(bundleInput, directoryRelative) {
   const targetDirectory = normalizeDirectory(rawDir);
   const location = buildConfigFilePath(targetDirectory);
 
-  console.log('[configStore] writeBundle', { directoryRelative, targetDirectory, filePath: location.filePath });
-
   safeBundle.global.globalConfigDirectory = targetDirectory;
 
   await fs.mkdir(location.absoluteDirectory, { recursive: true });
   await fs.writeFile(location.filePath, JSON.stringify(safeBundle, null, 2), 'utf8');
 
-  console.log('[configStore] writeBundle success', { filePath: location.filePath });
   return { bundle: safeBundle, ...location };
 }
 

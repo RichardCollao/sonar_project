@@ -94,7 +94,6 @@ function buildLocalhostWarning(sonarHostUrl) {
 async function saveGlobalConfig(req, res) {
   try {
     const payload = req.body || {};
-    console.log('[saveGlobalConfig] incoming payload', payload);
     const missing = REQUIRED_GLOBAL_FIELDS.filter(function(field) { return !payload[field] || !String(payload[field]).trim(); });
     const sonarHostUrl = getGlobalSonarHostUrl();
 
