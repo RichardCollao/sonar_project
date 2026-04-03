@@ -26,4 +26,33 @@ body {
   border-radius: 0.5rem;
   overflow: hidden;
   background: #0f172a;
+  padding: 8px 12px;
+  box-sizing: border-box;
+}
+
+.scanner-terminal-inner {
+  width: 100%;
+  height: 100%;
+}
+
+.scanner-terminal-inner .xterm-viewport::-webkit-scrollbar {
+  width: 6px;
+}
+
+.scanner-terminal-inner .xterm-viewport::-webkit-scrollbar-track {
+  background: #0f172a;
+}
+
+.scanner-terminal-inner .xterm-viewport::-webkit-scrollbar-thumb {
+  background: #4a6080;
+  border-radius: 3px;
+}
+
+.scanner-terminal-inner .xterm-viewport::-webkit-scrollbar-thumb:hover {
+  background: #5c7599;
+}
+
+.scanner-terminal-inner .xterm-viewport {
+  scrollbar-width: thin;
+  scrollbar-color: #4a6080 #0f172a;
 }

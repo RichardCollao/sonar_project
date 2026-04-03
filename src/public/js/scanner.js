@@ -29,7 +29,7 @@
   }
 
   function ensureTerminal() {
-    const terminalContainer = byId('scannerTerminal');
+    const terminalContainer = byId('scannerTerminalInner');
     if (!terminalContainer) return;
 
     if (terminal) return;
@@ -42,11 +42,15 @@
     terminal = new Terminal({
       convertEol: true,
       cursorBlink: true,
+      allowProposedApi: true,
       fontFamily: 'Menlo, Monaco, Consolas, "Courier New", monospace',
       fontSize: 13,
       theme: {
         background: '#0f172a',
-        foreground: '#e2e8f0'
+        foreground: '#e2e8f0',
+        scrollbarSliderBackground: '#4a6080',
+        scrollbarSliderHoverBackground: '#5c7599',
+        scrollbarSliderActiveBackground: '#6e8ab2'
       }
     });
 
