@@ -98,7 +98,7 @@
             dataSet.push([
                 String(index + 1),
                 projectKey,
-                row.sonarProjectBaseDir ? `/workspace/${row.sonarProjectBaseDir}` : '',
+                row.sonarProjectBaseDir ? `<%= workspaceBaseDir %>/${row.sonarProjectBaseDir}` : '',
                 `<div class="text-center d-flex justify-content-center gap-1">
                     <button type="button" class="btn btn-outline-primary btn-sm btn-edit-project" data-project-key="${encodeURIComponent(projectKey)}" data-project-base-dir="${encodeURIComponent(row.sonarProjectBaseDir || '')}" title="Editar" onclick="editProject(this)"><i class="bi bi-pencil-square"></i></button>
                     <button type="button" class="btn btn-outline-danger btn-sm btn-delete-project" data-project-key="${encodeURIComponent(projectKey)}" title="Eliminar" onclick="deleteProject(this)"><i class="bi bi-trash3"></i></button>
@@ -115,6 +115,9 @@
             lengthChange: true,
             order: [],
             pageLength: 10,
+            columnDefs: [
+                { targets: 3, orderable: false, searchable: false }
+            ],
         });
 
         $('#tblProjects').css('max-width', '99.9%');

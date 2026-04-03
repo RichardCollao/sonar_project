@@ -27,25 +27,6 @@ function normalizeHostUrl(hostUrl) {
   return String(hostUrl || '').trim().replace(/\/+$/, '');
 }
 
-function resolveRuntimeSonarHostUrl(rawHostUrl) {
-  const hostUrl = normalizeHostUrl(rawHostUrl);
-  if (!hostUrl) return hostUrl;
-
-  try {
-    const parsed = new URL(hostUrl);
-    const localhostNames = new Set(['localhost', '127.0.0.1', '::1']);
-
-    if (localhostNames.has(String(parsed.hostname || '').toLowerCase())) {
-      parsed.hostname = 'sonarqube';
-      return parsed.toString().replace(/\/+$/, '');
-    }
-
-    return hostUrl;
-  } catch {
-    return hostUrl;
-  }
-}
-
 async function postToSonarApi(sonarHostUrl, sonarToken, endpoint, payload = {}) {
   const host = normalizeHostUrl(sonarHostUrl);
   const url = new URL(`${host}${endpoint}`);
@@ -87,7 +68,7 @@ async function resolveConfig() {
   const { bundle } = await getBundle();
   const globalConfig = bundle?.global || {};
 
-  const sonarHostUrl = resolveRuntimeSonarHostUrl(getGlobalSonarHostUrl());
+  const sonarHostUrl = normalizeHostUrl(getGlobalSonarHostUrl());
   const sonarToken = String(globalConfig.sonarToken || '').trim();
 
   if (!sonarHostUrl || !sonarToken) {

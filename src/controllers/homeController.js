@@ -2,7 +2,8 @@ const fs = require('node:fs/promises');
 const {
   getGlobalSonarHostUrl,
   getSonarWorkingDirectory,
-  getGlobalConfigDirectory
+  getGlobalConfigDirectory,
+  getWorkspaceBaseDir
 } = require('../utils/envConfig');
 const {
   resolveWorkspacePath,
@@ -15,7 +16,7 @@ const REQUIRED_GLOBAL_FIELDS = [
 ];
 
 function renderHome(req, res) {
-  res.render('home', {});
+  res.render('home', { workspaceBaseDir: getWorkspaceBaseDir() });
 }
 
 async function getProjects(req, res) {

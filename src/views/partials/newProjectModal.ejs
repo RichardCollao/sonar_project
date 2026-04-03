@@ -15,7 +15,7 @@
                     <div class="col-12">
                         <label for="sonarProjectBaseDir" class="form-label">sonarProjectBaseDir</label>
                         <div class="input-group input-group-sm mb-3">
-                            <span class="input-group-text">/workspace/</span>
+                            <span class="input-group-text"><%= workspaceBaseDir %>/</span>
                             <input type="text" class="form-control form-control-sm" id="sonarProjectBaseDir" required
                                 onchange="trimProjectInput(this)" onblur="trimProjectInput(this)">
                             <button type="button" class="btn btn-outline-secondary"

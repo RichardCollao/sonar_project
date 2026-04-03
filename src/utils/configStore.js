@@ -2,10 +2,11 @@ const fs = require('node:fs/promises');
 const path = require('node:path');
 const {
   getSonarWorkingDirectory,
-  getGlobalConfigDirectory
+  getGlobalConfigDirectory,
+  getWorkspaceBaseDir
 } = require('./envConfig');
 
-const WORKSPACE_BASE_DIR = '/workspace';
+const WORKSPACE_BASE_DIR = getWorkspaceBaseDir();
 const CONFIG_FILE_NAME = 'config.json';
 
 function resolveWorkspacePath(storedPath = '') {
@@ -13,9 +14,9 @@ function resolveWorkspacePath(storedPath = '') {
   if (!raw) return '';
 
   let withoutWorkspacePrefix = raw;
-  if (raw.startsWith('/workspace/')) {
-    withoutWorkspacePrefix = raw.slice('/workspace/'.length);
-  } else if (raw === '/workspace') {
+  if (raw.startsWith(`${WORKSPACE_BASE_DIR}/`)) {
+    withoutWorkspacePrefix = raw.slice(WORKSPACE_BASE_DIR.length + 1);
+  } else if (raw === WORKSPACE_BASE_DIR) {
     withoutWorkspacePrefix = '';
   }
 
@@ -25,7 +26,7 @@ function resolveWorkspacePath(storedPath = '') {
     || resolved.startsWith(`${WORKSPACE_BASE_DIR}${path.sep}`);
 
   if (!isInsideWorkspace) {
-    const error = new Error('La ruta debe estar dentro de /workspace.');
+    const error = new Error(`La ruta debe estar dentro de ${WORKSPACE_BASE_DIR}.`);
     error.status = 400;
     throw error;
   }
@@ -34,7 +35,13 @@ function resolveWorkspacePath(storedPath = '') {
 }
 
 function normalizeDirectory(value = '') {
-  return String(value || '').trim().replace(/^\/workspace\/?/, '').replace(/^\/+/, '');
+  let str = String(value || '').trim();
+  if (str.startsWith(`${WORKSPACE_BASE_DIR}/`)) {
+    str = str.slice(WORKSPACE_BASE_DIR.length + 1);
+  } else if (str === WORKSPACE_BASE_DIR) {
+    str = '';
+  }
+  return str.replace(/^\/+/, '');
 }
 
 function buildConfigFilePath(directoryRelative) {

@@ -1,7 +1,8 @@
 const fs = require('node:fs/promises');
 const path = require('node:path');
+const { getWorkspaceBaseDir } = require('../utils/envConfig');
 
-const BASE_DIR = '/workspace/';
+const BASE_DIR = getWorkspaceBaseDir();
 const BASE_DIR_RESOLVED = path.resolve(BASE_DIR);
 
 function toPosixPath(value) {

@@ -2,10 +2,11 @@ const path = require('node:path');
 const { exec, execFile } = require('node:child_process');
 const { promisify } = require('node:util');
 const { getBundle } = require('../utils/configStore');
+const { getWorkspaceBaseDir } = require('../utils/envConfig');
 
 const execAsync = promisify(exec);
 const execFileAsync = promisify(execFile);
-const WORKSPACE_BASE_DIR = '/workspace';
+const WORKSPACE_BASE_DIR = getWorkspaceBaseDir();
 
 function isValidProjectKeyForFileName(value = '') {
   const projectKey = String(value || '').trim();
@@ -28,9 +29,9 @@ function resolveWorkspacePath(storedPath = '') {
   if (!raw) return '';
 
   let withoutWorkspacePrefix = raw;
-  if (raw.startsWith('/workspace/')) {
-    withoutWorkspacePrefix = raw.slice('/workspace/'.length);
-  } else if (raw === '/workspace') {
+  if (raw.startsWith(`${WORKSPACE_BASE_DIR}/`)) {
+    withoutWorkspacePrefix = raw.slice(WORKSPACE_BASE_DIR.length + 1);
+  } else if (raw === WORKSPACE_BASE_DIR) {
     withoutWorkspacePrefix = '';
   }
 
@@ -40,7 +41,7 @@ function resolveWorkspacePath(storedPath = '') {
     || resolved.startsWith(`${WORKSPACE_BASE_DIR}${path.sep}`);
 
   if (!isInsideWorkspace) {
-    const error = new Error('La ruta debe estar dentro de /workspace.');
+    const error = new Error(`La ruta debe estar dentro de ${WORKSPACE_BASE_DIR}.`);
     error.status = 400;
     throw error;
   }

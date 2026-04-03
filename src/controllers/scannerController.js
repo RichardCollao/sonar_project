@@ -259,7 +259,7 @@ async function buildScannerConfig(payload) {
   }
 
   const sonarToken = String(globalConfig.sonarToken || '').trim();
-  const sonarHostUrl = resolveRuntimeSonarHostUrl(getGlobalSonarHostUrl());
+  const sonarHostUrl = getGlobalSonarHostUrl();
   const projectBaseDir = resolveWorkspacePath(projectConfig.sonarProjectBaseDir);
   const workingDirectory = resolveWorkingDir(globalConfig, projectConfig);
 
