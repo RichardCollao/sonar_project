@@ -67,6 +67,15 @@
   </style>
 
   <script>
+    document.addEventListener('DOMContentLoaded', function () {
+      const select = document.querySelector('#selProject');
+      if (select) {
+        select.addEventListener('change', updateOpenSonarButtonState);
+      }
+      updateOpenSonarButtonState();
+    });
+
+
     function updateOpenSonarButtonState() {
       const select = document.querySelector('#selProject');
       const button = document.querySelector('#btnOpenSonar');
@@ -112,12 +121,6 @@
       updateOpenSonarButtonState();
     }
 
-    document.addEventListener('DOMContentLoaded', function () {
-      const select = document.querySelector('#selProject');
-      if (select) {
-        select.addEventListener('change', updateOpenSonarButtonState);
-      }
-      updateOpenSonarButtonState();
-    });
+
 
   </script>
