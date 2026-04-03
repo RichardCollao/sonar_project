@@ -11,6 +11,7 @@ router.get('/', homeController.renderHome);
 router.get('/api/projects', homeController.getProjects);
 router.get('/api/projects/global', homeController.getGlobalConfig);
 router.post('/api/projects/global', homeController.saveGlobalConfig);
+router.post('/api/theme', homeController.saveTheme);
 router.post('/api/projects', sonarController.createProject);
 router.put('/api/projects/:projectKey', sonarController.updateProject);
 router.delete('/api/projects/:projectKey', sonarController.deleteProject);

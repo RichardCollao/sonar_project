@@ -9,6 +9,11 @@ body {
   border-radius: 0 0 0.5rem 0.5rem;
 }
 
+[data-bs-theme="dark"] .tab-content {
+  background-color: var(--bs-body-bg);
+  border-color: var(--bs-border-color);
+}
+
 .dataTables_wrapper .dataTables_filter input,
 .dataTables_wrapper .dataTables_length select {
   margin-left: 0.5rem;

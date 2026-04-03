@@ -65,7 +65,8 @@ function normalizeBundle(raw) {
     global: {
       sonarToken: String(global.sonarToken || '').trim(),
       sonarWorkingDirectory,
-      globalConfigDirectory
+      globalConfigDirectory,
+      theme: ['light', 'dark'].includes(global.theme) ? global.theme : 'light'
     },
     projects: projects
       .filter(function (item) {

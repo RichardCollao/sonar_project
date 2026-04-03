@@ -41,7 +41,8 @@ async function getGlobalConfig(req, res) {
       sonarToken: String(global.sonarToken || '').trim(),
       sonarHostUrl,
       sonarWorkingDirectory,
-      globalConfigDirectory
+      globalConfigDirectory,
+      theme: String(global.theme || 'light')
     };
 
     return res.json({ success: true, data });
@@ -139,9 +140,25 @@ async function saveGlobalConfig(req, res) {
   }
 }
 
+async function saveTheme(req, res) {
+  try {
+    const theme = req.body?.theme;
+    if (!['light', 'dark'].includes(theme)) {
+      return res.status(400).json({ success: false, message: 'Tema inválido. Usa "light" o "dark".' });
+    }
+    const current = await getBundle();
+    current.bundle.global.theme = theme;
+    await writeBundle(current.bundle, current.directoryRelative);
+    return res.json({ success: true });
+  } catch {
+    return res.status(500).json({ success: false, message: 'No fue posible guardar el tema.' });
+  }
+}
+
 module.exports = {
   renderHome,
   getProjects,
   getGlobalConfig,
-  saveGlobalConfig
+  saveGlobalConfig,
+  saveTheme
 };
