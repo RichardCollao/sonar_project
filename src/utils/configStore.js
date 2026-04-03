@@ -1,5 +1,9 @@
 const fs = require('node:fs/promises');
 const path = require('node:path');
+const {
+  getSonarWorkingDirectory,
+  getGlobalConfigDirectory
+} = require('./envConfig');
 
 const WORKSPACE_BASE_DIR = '/workspace';
 const CONFIG_FILE_NAME = 'config.json';
@@ -51,6 +55,8 @@ function buildConfigFilePath(directoryRelative) {
 }
 
 function normalizeBundle(raw) {
+  const sonarWorkingDirectory = getSonarWorkingDirectory();
+  const globalConfigDirectory = getGlobalConfigDirectory();
   const safe = raw && typeof raw === 'object' ? raw : {};
   const global = safe.global && typeof safe.global === 'object' ? safe.global : {};
   const projects = Array.isArray(safe.projects) ? safe.projects : [];
@@ -58,8 +64,8 @@ function normalizeBundle(raw) {
   return {
     global: {
       sonarToken: String(global.sonarToken || '').trim(),
-      sonarWorkingDirectory: String(global.sonarWorkingDirectory || '').trim(),
-      globalConfigDirectory: normalizeDirectory(global.globalConfigDirectory)
+      sonarWorkingDirectory,
+      globalConfigDirectory
     },
     projects: projects
       .filter(function (item) {
@@ -78,23 +84,31 @@ function normalizeBundle(raw) {
 }
 
 async function getBundle() {
-  const location = buildConfigFilePath('sonar/config_directory');
+  const globalConfigDirectory = getGlobalConfigDirectory();
+  const location = buildConfigFilePath(globalConfigDirectory);
 
   let raw;
   try {
     raw = await fs.readFile(location.filePath, 'utf8');
   } catch (error) {
-    if (error?.code === 'ENOENT') {
-      return { bundle: normalizeBundle({}), ...location };
+    if (error?.code !== 'ENOENT') {
+      throw error;
     }
-    throw error;
+
+    const legacyLocation = buildConfigFilePath('sonar/config_directory');
+    try {
+      raw = await fs.readFile(legacyLocation.filePath, 'utf8');
+      const bundle = normalizeBundle(JSON.parse(raw));
+      return { bundle, ...legacyLocation };
+    } catch (legacyError) {
+      if (legacyError?.code === 'ENOENT') {
+        return { bundle: normalizeBundle({}), ...location };
+      }
+      throw legacyError;
+    }
   }
 
   const bundle = normalizeBundle(JSON.parse(raw));
-
-  if (!bundle.global.globalConfigDirectory) {
-    bundle.global.globalConfigDirectory = location.directoryRelative;
-  }
 
   return { bundle, ...location };
 }

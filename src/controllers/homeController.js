@@ -1,5 +1,9 @@
 const fs = require('node:fs/promises');
-const { getGlobalSonarHostUrl } = require('../utils/envConfig');
+const {
+  getGlobalSonarHostUrl,
+  getSonarWorkingDirectory,
+  getGlobalConfigDirectory
+} = require('../utils/envConfig');
 const {
   resolveWorkspacePath,
   getBundle,
@@ -7,9 +11,7 @@ const {
 } = require('../utils/configStore');
 
 const REQUIRED_GLOBAL_FIELDS = [
-  'sonarToken',
-  'sonarWorkingDirectory',
-  'globalConfigDirectory'
+  'sonarToken'
 ];
 
 function renderHome(req, res) {
@@ -31,14 +33,16 @@ async function getProjects(req, res) {
 async function getGlobalConfig(req, res) {
   try {
     const sonarHostUrl = getGlobalSonarHostUrl();
+    const sonarWorkingDirectory = getSonarWorkingDirectory();
+    const globalConfigDirectory = getGlobalConfigDirectory();
     const { bundle } = await getBundle();
     const global = bundle?.global || {};
 
     let data = {
       sonarToken: String(global.sonarToken || '').trim(),
       sonarHostUrl,
-      sonarWorkingDirectory: String(global.sonarWorkingDirectory || '').trim(),
-      globalConfigDirectory: String(global.globalConfigDirectory || '').trim()
+      sonarWorkingDirectory,
+      globalConfigDirectory
     };
 
     return res.json({ success: true, data });
@@ -94,6 +98,8 @@ async function saveGlobalConfig(req, res) {
     const payload = req.body || {};
     const missing = REQUIRED_GLOBAL_FIELDS.filter(function(field) { return !payload[field] || !String(payload[field]).trim(); });
     const sonarHostUrl = getGlobalSonarHostUrl();
+    const sonarWorkingDirectory = getSonarWorkingDirectory();
+    const globalConfigDirectory = getGlobalConfigDirectory();
 
     if (missing.length > 0) {
       return res.status(400).json({
@@ -104,8 +110,8 @@ async function saveGlobalConfig(req, res) {
 
     const data = {
       sonarToken: String(payload.sonarToken).trim(),
-      sonarWorkingDirectory: String(payload.sonarWorkingDirectory || '').trim(),
-      globalConfigDirectory: String(payload.globalConfigDirectory || '').trim()
+      sonarWorkingDirectory,
+      globalConfigDirectory
     };
 
     const current = await getBundle();
