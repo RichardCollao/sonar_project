@@ -1,4 +1,3 @@
-const homeModel = require('../models/homeModel');
 const fs = require('node:fs/promises');
 const { getGlobalSonarHostUrl } = require('../utils/envConfig');
 const {
@@ -14,8 +13,7 @@ const REQUIRED_GLOBAL_FIELDS = [
 ];
 
 function renderHome(req, res) {
-  const data = homeModel.getHomeData();
-  res.render('home', data);
+  res.render('home', {});
 }
 
 async function getProjects(req, res) {
