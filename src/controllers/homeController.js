@@ -24,8 +24,7 @@ async function getProjects(req, res) {
     const projects = Array.isArray(bundle?.projects) ? bundle.projects : [];
 
     res.json({ success: true, data: projects });
-  } catch (error) {
-    console.error('Error listando proyectos:', error);
+  } catch {
     res.status(500).json({ success: false, message: 'No fue posible listar los proyectos.' });
   }
 }
@@ -46,8 +45,7 @@ async function getGlobalConfig(req, res) {
     };
 
     return res.json({ success: true, data });
-  } catch (error) {
-    console.error('Error obteniendo configuración global:', error);
+  } catch {
     return res.status(500).json({ success: false, message: 'No fue posible obtener la configuración global.' });
   }
 }
@@ -136,8 +134,7 @@ async function saveGlobalConfig(req, res) {
 
     const warning = warnings.length > 0 ? warnings.join(' | ') : null;
     return res.json({ success: true, ...(warning && { warning }) });
-  } catch (error) {
-    console.error('Error guardando configuración global:', error);
+  } catch {
     return res.status(500).json({ success: false, message: 'No fue posible guardar la configuración global.' });
   }
 }

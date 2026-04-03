@@ -4,7 +4,6 @@ const os = require('node:os');
 const { randomUUID } = require('node:crypto');
 const pty = require('node-pty');
 const { WebSocketServer } = require('ws');
-const { logApp } = require('../utils/logger');
 const { getGlobalSonarHostUrl } = require('../utils/envConfig');
 const {
   getBundle,
@@ -66,7 +65,6 @@ async function ensureDirectoryExists(targetPath, label) {
     if (error?.code === 'ENOENT') {
       try {
         await fs.mkdir(resolved, { recursive: true });
-        logApp('info', `[scanner] directorio creado: ${resolved}`);
       } catch (mkdirError) {
         const createFailed = new Error(`${label} no existe y no se pudo crear: ${resolved} — ${mkdirError.message}`);
         createFailed.status = 500;
@@ -304,14 +302,6 @@ async function createScannerSession(req, res) {
     const config = await buildScannerConfig(req.body || {});
     const sessionId = createSessionData(config);
 
-    await logApp('info', '[scanner] session created', {
-      sessionId,
-      projectKey: config.projectKey,
-      workingDirectory: config.workingDirectory,
-      sources: config.sources,
-      exclusions: config.exclusions
-    });
-
     return res.status(201).json({
       success: true,
       data: {
@@ -320,13 +310,6 @@ async function createScannerSession(req, res) {
       }
     });
   } catch (error) {
-    await logApp('error', '[scanner] create session error', {
-      message: error?.message,
-      stack: error?.stack,
-      status: error?.status,
-      code: error?.code
-    });
-
     return res.status(error?.status || 500).json({
       success: false,
       message: error?.message || 'No fue posible preparar la sesión de SonarScanner.'
@@ -371,13 +354,6 @@ function initScannerWebSocket(server) {
         }
       });
     } catch (error) {
-      await logApp('error', '[scanner] pty spawn error', {
-        message: error?.message,
-        stack: error?.stack,
-        projectKey: session?.projectKey || null,
-        workingDirectory: session?.workingDirectory || null
-      });
-
       sendSocketMessage(ws, {
         type: 'error',
         message: `No fue posible iniciar sonar-scanner: ${error?.message || 'error desconocido'}`
@@ -385,11 +361,6 @@ function initScannerWebSocket(server) {
       ws.close(1011, 'spawn-error');
       return;
     }
-
-    await logApp('info', '[scanner] shell started', {
-      hasSession: !!session,
-      projectKey: session?.projectKey || null
-    });
 
     if (session) {
       sendSocketMessage(ws, {
@@ -411,12 +382,6 @@ function initScannerWebSocket(server) {
 
     scannerProcess.onExit(async function(event) {
       const exitCode = Number.isFinite(event?.exitCode) ? event.exitCode : 1;
-
-      await logApp('info', '[scanner] finished', {
-        projectKey: session?.projectKey || null,
-        exitCode,
-        signal: event?.signal
-      });
 
       sendSocketMessage(ws, {
         type: 'exit',
@@ -460,12 +425,6 @@ function initScannerWebSocket(server) {
 
             scannerProcess.write(`${config.rawCommand}\r`);
           } catch (error) {
-            await logApp('error', '[scanner] runScanner websocket error', {
-              message: error?.message,
-              stack: error?.stack,
-              status: error?.status
-            });
-
             sendSocketMessage(ws, {
               type: 'error',
               message: error?.message || 'No fue posible ejecutar SonarScanner.'

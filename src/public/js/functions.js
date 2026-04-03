@@ -1,56 +1,4 @@
 const app = { activeRequests: 0 };
-const CLIENT_LOG_ENDPOINT = '/api/logs/client';
-
-function normalizeLogData(data) {
-    if (data === undefined || data === null) return data;
-
-    if (data instanceof Error) {
-        return {
-            name: data.name,
-            message: data.message,
-            stack: data.stack
-        };
-    }
-
-    if (Array.isArray(data)) {
-        return data.map(normalizeLogData);
-    }
-
-    if (typeof data === 'object') {
-        const normalized = {};
-        Object.entries(data).forEach(function ([key, value]) {
-            normalized[key] = normalizeLogData(value);
-        });
-        return normalized;
-    }
-
-    return data;
-}
-
-function sendClientLog(level, event, data) {
-    if (typeof fetch !== 'function') return;
-
-    const browserGlobal = globalThis;
-
-    const payload = {
-        level,
-        event,
-        data: normalizeLogData(data),
-        url: browserGlobal.location?.href || '',
-        userAgent: browserGlobal.navigator?.userAgent || '',
-        timestamp: new Date().toISOString()
-    };
-
-    fetch(CLIENT_LOG_ENDPOINT, {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json'
-        },
-        body: JSON.stringify(payload),
-        keepalive: true
-    }).catch(function () {
-    });
-}
 
 function initIziToastDefaults() {
     if (typeof iziToast === 'undefined') return;
@@ -161,30 +109,11 @@ async function request(uri, method = "GET", formData = null, callback = () => { 
     const options = buildRequestOptions(method, formData);
     let json = null;
 
-    console.log('[request] start', { uri, method, hasBody: !!formData, formData });
-    sendClientLog('info', '[request] start', { uri, method, hasBody: !!formData, formData });
-
     try {
         const res = await fetch(uri, options);
-        console.log('[request] response', {
-            uri,
-            method,
-            status: res.status,
-            ok: res.ok,
-            contentType: res.headers.get('content-type') || ''
-        });
-        sendClientLog('info', '[request] response', {
-            uri,
-            method,
-            status: res.status,
-            ok: res.ok,
-            contentType: res.headers.get('content-type') || ''
-        });
 
         if (!res.ok) {
             const { errorMessage, errorDetail } = await parseErrorResponse(res);
-            console.error('[request] http error', { uri, method, errorMessage, errorDetail });
-            sendClientLog('error', '[request] http error', { uri, method, errorMessage, errorDetail });
             showRequestError(errorMessage, errorDetail);
             return;
         }
@@ -195,9 +124,6 @@ async function request(uri, method = "GET", formData = null, callback = () => { 
             const contentType = res.headers.get('content-type') || '';
             const raw = await res.text();
             const trimmed = raw.trim();
-
-            console.log('[request] raw response', { uri, method, raw: trimmed });
-            sendClientLog('info', '[request] raw response', { uri, method, raw: trimmed });
 
             if (!trimmed) {
                 json = {};
@@ -212,26 +138,11 @@ async function request(uri, method = "GET", formData = null, callback = () => { 
             }
         }
 
-        console.log('res.redirect :>> ', json.redirect);
         if (json.redirect) {
             location.href = json.redirect;
             return;
         }
     } catch (error) {
-        console.error('[request] exception', {
-            uri,
-            method,
-            name: error?.name,
-            message: error?.message,
-            stack: error?.stack
-        });
-        sendClientLog('error', '[request] exception', {
-            uri,
-            method,
-            name: error?.name,
-            message: error?.message,
-            stack: error?.stack
-        });
         const isNetworkError = error?.name === 'TypeError';
 
         if (isNetworkError) {
@@ -247,26 +158,8 @@ async function request(uri, method = "GET", formData = null, callback = () => { 
     }
 
     try {
-        console.log('[request] callback start', { uri, method, json });
-        sendClientLog('info', '[request] callback start', { uri, method, json });
         callback(json);
-        console.log('[request] callback done', { uri, method });
-        sendClientLog('info', '[request] callback done', { uri, method });
     } catch (error) {
-        console.error('[request] callback exception', {
-            uri,
-            method,
-            name: error?.name,
-            message: error?.message,
-            stack: error?.stack
-        });
-        sendClientLog('error', '[request] callback exception', {
-            uri,
-            method,
-            name: error?.name,
-            message: error?.message,
-            stack: error?.stack
-        });
         const detail = error?.message || 'Se produjo un error ejecutando la respuesta.';
         showRequestError('Error de interfaz', detail);
     }

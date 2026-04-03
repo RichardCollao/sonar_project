@@ -75,8 +75,6 @@ async function renderExplorer(req, res) {
       error: null
     });
   } catch (error) {
-    console.error('Error renderizando explorador:', error);
-
     if (error?.code === 'INVALID_PATH') {
       return res.status(400).render('partials/fileExplorerView', {
         path: '',
@@ -104,8 +102,6 @@ async function listFiles(req, res) {
       items
     });
   } catch (error) {
-    console.error('Error listando archivos:', error);
-
     if (error?.code === 'INVALID_PATH') {
       return res.status(400).json({ message: 'Ruta inválida.' });
     }

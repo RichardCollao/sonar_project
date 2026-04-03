@@ -130,15 +130,13 @@ async function getProjectBranches(req, res) {
       }
 
       return res.json({ success: true, data: branches, baseBranch, currentBranch });
-    } catch (gitError) {
-      console.error('Error git branch:', gitError);
+    } catch {
       return res.status(500).json({
         success: false,
         message: `No fue posible obtener las ramas. Verifique que el directorio sea un repositorio git válido. Ruta evaluada: ${baseDir}`
       });
     }
-  } catch (error) {
-    console.error('Error obteniendo ramas:', error);
+  } catch {
     return res.status(500).json({ success: false, message: 'Error interno del servidor.' });
   }
 }
@@ -177,15 +175,13 @@ async function getProjectDiffFiles(req, res) {
         .filter(Boolean);
 
       return res.json({ success: true, data: files });
-    } catch (gitError) {
-      console.error('Error git diff:', gitError);
+    } catch {
       return res.status(500).json({
         success: false,
         message: `No fue posible obtener diferencias entre ramas. Ruta evaluada: ${baseDir}`
       });
     }
-  } catch (error) {
-    console.error('Error obteniendo diferencias:', error);
+  } catch {
     return res.status(500).json({ success: false, message: 'Error interno del servidor.' });
   }
 }

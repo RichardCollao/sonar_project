@@ -118,7 +118,6 @@ async function openGlobalFileExplorerModal(targetInputId) {
 
     currentTargetInputId = String(targetInputId || '').trim();
     if (!currentTargetInputId) {
-        console.error('Debe indicar el id del input destino para el explorador.');
         return;
     }
 
@@ -185,8 +184,6 @@ function initFileExplorerEvents() {
 
     if (acceptButton && modalElement) {
         acceptButton.addEventListener('click', function () {
-            console.log(currentPath);
-
             const workingDirInput = currentTargetInputId
                 ? document.getElementById(currentTargetInputId)
                 : null;

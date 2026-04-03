@@ -1,4 +1,3 @@
-const { logApp } = require('../utils/logger');
 const { getGlobalSonarHostUrl } = require('../utils/envConfig');
 const {
   getBundle,
@@ -50,16 +49,6 @@ function resolveRuntimeSonarHostUrl(rawHostUrl) {
 async function postToSonarApi(sonarHostUrl, sonarToken, endpoint, payload = {}) {
   const host = normalizeHostUrl(sonarHostUrl);
   const url = new URL(`${host}${endpoint}`);
-  console.log('[sonar] request', {
-    endpoint,
-    url: url.toString(),
-    payload
-  });
-  await logApp('info', '[sonar] request', {
-    endpoint,
-    url: url.toString(),
-    payload
-  });
 
   const requestBody = new URLSearchParams();
   Object.entries(payload).forEach(([key, value]) => {
@@ -83,19 +72,6 @@ async function postToSonarApi(sonarHostUrl, sonarToken, endpoint, payload = {}) 
   const responseBody = contentType.includes('application/json')
     ? await response.json()
     : await response.text();
-
-  console.log('[sonar] response', {
-    endpoint,
-    status: response.status,
-    ok: response.ok,
-    body: responseBody
-  });
-  await logApp('info', '[sonar] response', {
-    endpoint,
-    status: response.status,
-    ok: response.ok,
-    body: responseBody
-  });
 
   if (!response.ok) {
     const error = new Error('SonarQube API request failed');
@@ -206,8 +182,6 @@ function handleSonarError(res, error, operation) {
 async function createProject(req, res) {
   try {
     const payload = req.body || {};
-    console.log('[createProject] incoming payload', payload);
-    await logApp('info', '[createProject] incoming payload', payload);
     const missing = REQUIRED_PROJECT_FIELDS.filter(function(field) { return !payload[field] || !String(payload[field]).trim(); });
 
     if (missing.length > 0) {
@@ -219,8 +193,6 @@ async function createProject(req, res) {
 
     const projectKey = String(payload.sonarProjectKey || '').trim();
     const projectBaseDir = String(payload.sonarProjectBaseDir || '').trim();
-    console.log('[createProject] normalized', { projectKey, projectBaseDir });
-    await logApp('info', '[createProject] normalized', { projectKey, projectBaseDir });
 
     if (!isValidProjectKeyForFileName(projectKey)) {
       return res.status(400).json({
@@ -282,8 +254,6 @@ async function createProject(req, res) {
       store.bundle.global.globalConfigDirectory
     );
 
-    console.log('[createProject] local config updated', { projectKey });
-    await logApp('info', '[createProject] local config updated', { projectKey });
 
     return res.status(201).json({
       success: true,
@@ -291,14 +261,6 @@ async function createProject(req, res) {
       message: warningMessage || 'Proyecto creado correctamente.'
     });
   } catch (error) {
-    console.error('Error creando proyecto:', error);
-    await logApp('error', 'Error creando proyecto', {
-      message: error?.message,
-      stack: error?.stack,
-      status: error?.status,
-      body: error?.body,
-      code: error?.code
-    });
     return handleSonarError(res, error, 'crear proyecto');
   }
 }
@@ -392,14 +354,6 @@ async function updateProject(req, res) {
       message: warningMessage || 'Proyecto actualizado correctamente.'
     });
   } catch (error) {
-    console.error('Error actualizando proyecto:', error);
-    await logApp('error', 'Error actualizando proyecto', {
-      message: error?.message,
-      stack: error?.stack,
-      status: error?.status,
-      body: error?.body,
-      code: error?.code
-    });
     return handleSonarError(res, error, 'actualizar proyecto');
   }
 }
@@ -407,8 +361,6 @@ async function updateProject(req, res) {
 async function deleteProject(req, res) {
   try {
     const projectKey = String(req.params.projectKey || '').trim();
-    console.log('[deleteProject] request', { projectKey });
-    await logApp('info', '[deleteProject] request', { projectKey });
 
     if (!isValidProjectKeyForFileName(projectKey)) {
       return res.status(400).json({ success: false, message: 'Proyecto inválido.' });
@@ -452,19 +404,9 @@ async function deleteProject(req, res) {
       store.bundle.global.globalConfigDirectory
     );
 
-    console.log('[deleteProject] local config updated', { projectKey, warningMessage });
-    await logApp('info', '[deleteProject] local config updated', { projectKey, warningMessage });
 
     return res.json({ success: true, message: warningMessage || 'Proyecto eliminado correctamente.' });
   } catch (error) {
-    console.error('Error eliminando proyecto:', error);
-    await logApp('error', 'Error eliminando proyecto', {
-      message: error?.message,
-      stack: error?.stack,
-      status: error?.status,
-      body: error?.body,
-      code: error?.code
-    });
     return handleSonarError(res, error, 'eliminar proyecto');
   }
 }
