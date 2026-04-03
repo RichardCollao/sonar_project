@@ -1,8 +1,7 @@
-const fs = require('node:fs/promises');
 const path = require('node:path');
 const { exec, execFile } = require('node:child_process');
 const { promisify } = require('node:util');
-const { getUploadFilePath } = require('../utils/uploadsStorage');
+const { getBundle } = require('../utils/configStore');
 
 const execAsync = promisify(exec);
 const execFileAsync = promisify(execFile);
@@ -13,7 +12,7 @@ function isValidProjectKeyForFileName(value = '') {
   if (!projectKey) return false;
   if (projectKey.length > 400) return false;
   if (!/^[A-Za-z0-9._:-]+$/.test(projectKey)) return false;
-  return /[^0-9]/.test(projectKey);
+  return /\D/.test(projectKey);
 }
 
 function isValidGitRef(value = '') {
@@ -28,9 +27,12 @@ function resolveWorkspacePath(storedPath = '') {
   const raw = String(storedPath || '').trim();
   if (!raw) return '';
 
-  const withoutWorkspacePrefix = raw.startsWith('/workspace/')
-    ? raw.slice('/workspace/'.length)
-    : (raw === '/workspace' ? '' : raw);
+  let withoutWorkspacePrefix = raw;
+  if (raw.startsWith('/workspace/')) {
+    withoutWorkspacePrefix = raw.slice('/workspace/'.length);
+  } else if (raw === '/workspace') {
+    withoutWorkspacePrefix = '';
+  }
 
   const cleanRelative = withoutWorkspacePrefix.replace(/^\/+/, '');
   const resolved = path.resolve(WORKSPACE_BASE_DIR, cleanRelative || '.');
@@ -47,9 +49,20 @@ function resolveWorkspacePath(storedPath = '') {
 }
 
 async function getProjectData(projectKey) {
-  const filePath = getUploadFilePath(`${projectKey}.json`);
-  const raw = await fs.readFile(filePath, 'utf8');
-  return JSON.parse(raw);
+  const { bundle } = await getBundle();
+  const projects = Array.isArray(bundle?.projects) ? bundle.projects : [];
+
+  const project = projects.find(function(item) {
+    return String(item?.sonarProjectKey || '').trim() === String(projectKey || '').trim();
+  });
+
+  if (!project) {
+    const error = new Error('Proyecto no encontrado.');
+    error.code = 'ENOENT';
+    throw error;
+  }
+
+  return project;
 }
 
 async function getProjectBranches(req, res) {

@@ -7,7 +7,7 @@
             </div>
             <div class="modal-body">
                 <form id="frmEditProject" class="row g-3">
-                    <input type="hidden" id="editProjectFileName">
+                    <input type="hidden" id="editProjectCurrentKey">
                     <div class="col-12">
                         <label for="editSonarProjectKey" class="form-label">sonarProjectKey</label>
                         <input type="text" class="form-control form-control-sm" id="editSonarProjectKey" required
@@ -36,15 +36,15 @@
 </div>
 
 <script>
-    function openEditProjectModal(fileName, projectKey, projectBaseDir) {
+    function openEditProjectModal(projectKey, projectBaseDir) {
         const modalElement = document.getElementById('editProjectModal');
         if (!modalElement) return;
 
-        const fileNameInput = document.getElementById('editProjectFileName');
+        const currentKeyInput = document.getElementById('editProjectCurrentKey');
         const projectKeyInput = document.getElementById('editSonarProjectKey');
         const projectBaseDirInput = document.getElementById('editSonarProjectBaseDir');
 
-        if (fileNameInput) fileNameInput.value = fileName || '';
+        if (currentKeyInput) currentKeyInput.value = projectKey || '';
         if (projectKeyInput) projectKeyInput.value = projectKey || '';
         if (projectBaseDirInput) projectBaseDirInput.value = projectBaseDir || '';
 
@@ -55,11 +55,11 @@
         const editProjectForm = document.getElementById('frmEditProject');
         if (!editProjectForm?.reportValidity()) return;
 
-        const fileName = document.getElementById('editProjectFileName')?.value?.trim() || '';
+        const currentProjectKey = document.getElementById('editProjectCurrentKey')?.value?.trim() || '';
         const projectKeyValue = document.getElementById('editSonarProjectKey')?.value?.trim() || '';
         const projectBaseDirValue = document.getElementById('editSonarProjectBaseDir')?.value?.trim() || '';
 
-        if (!fileName || !projectKeyValue || !projectBaseDirValue) {
+        if (!currentProjectKey || !projectKeyValue || !projectBaseDirValue) {
             Swal.fire({
                 icon: 'warning',
                 title: 'Campos obligatorios',
@@ -90,7 +90,7 @@
             sonarProjectBaseDir: projectBaseDirValue
         };
 
-        request(`/api/projects/${encodeURIComponent(fileName)}`, 'PUT', payload, function (response) {
+        request(`/api/projects/${encodeURIComponent(currentProjectKey)}`, 'PUT', payload, function (response) {
             const modalElement = document.getElementById('editProjectModal');
             if (modalElement && window.bootstrap?.Modal) {
                 window.bootstrap.Modal.getOrCreateInstance(modalElement).hide();

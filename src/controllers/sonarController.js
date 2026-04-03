@@ -1,15 +1,9 @@
-const fs = require('node:fs/promises');
-const path = require('node:path');
 const { logApp } = require('../utils/logger');
 const { getGlobalSonarHostUrl } = require('../utils/envConfig');
 const {
-  GLOBAL_FILE_NAME,
-  ensureRootUploadsDir,
-  migrateLegacyUploads,
-  getUploadFilePath
-} = require('../utils/uploadsStorage');
-
-const GLOBAL_FILE_PATH = getUploadFilePath(GLOBAL_FILE_NAME);
+  getBundle,
+  writeBundle
+} = require('../utils/configStore');
 
 const REQUIRED_PROJECT_FIELDS = [
   'sonarProjectKey',
@@ -22,20 +16,6 @@ function isValidProjectKeyForFileName(value = '') {
   if (projectKey.length > 400) return false;
   if (!/^[A-Za-z0-9._:-]+$/.test(projectKey)) return false;
   return /\D/.test(projectKey);
-}
-
-async function readJsonFile(filePath) {
-  const raw = await fs.readFile(filePath, 'utf8');
-  return JSON.parse(raw);
-}
-
-async function ensureUploadsDir() {
-  await ensureRootUploadsDir();
-  await migrateLegacyUploads();
-}
-
-async function getGlobalConfig() {
-  return readJsonFile(GLOBAL_FILE_PATH);
 }
 
 function buildAuthHeader(sonarToken) {
@@ -128,7 +108,8 @@ async function postToSonarApi(sonarHostUrl, sonarToken, endpoint, payload = {}) 
 }
 
 async function resolveConfig() {
-  const globalConfig = await getGlobalConfig();
+  const { bundle } = await getBundle();
+  const globalConfig = bundle?.global || {};
 
   const sonarHostUrl = resolveRuntimeSonarHostUrl(getGlobalSonarHostUrl());
   const sonarToken = String(globalConfig.sonarToken || '').trim();
@@ -196,6 +177,12 @@ function hasSameProjectKey(existingProject, projectKey) {
   return existingKey === projectKey;
 }
 
+function findProjectIndex(projects, projectKey) {
+  return projects.findIndex(function(project) {
+    return String(project?.sonarProjectKey || '').trim() === projectKey;
+  });
+}
+
 function handleSonarError(res, error, operation) {
   if (error?.code === 'ENOENT') {
     return res.status(404).json({ success: false, message: 'Proyecto o configuración global no encontrados.' });
@@ -242,32 +229,23 @@ async function createProject(req, res) {
       });
     }
 
-    await ensureUploadsDir();
-    const fileName = `${projectKey}.json`;
-    const fullPath = getUploadFilePath(fileName);
-
-    let existingProject = null;
-
-    try {
-      existingProject = await readJsonFile(fullPath);
-    } catch (error) {
-      if (error?.code !== 'ENOENT') {
-        throw error;
-      }
-    }
+    const store = await getBundle();
+    const projects = Array.isArray(store?.bundle?.projects) ? store.bundle.projects : [];
+    const existingProjectIndex = findProjectIndex(projects, projectKey);
+    const existingProject = existingProjectIndex >= 0 ? projects[existingProjectIndex] : null;
 
     if (existingProject) {
       if (hasSameProjectKey(existingProject, projectKey)) {
         return res.status(200).json({
           success: true,
-          fileName,
+          projectKey,
           message: 'El proyecto ya existe localmente con la misma key.'
         });
       }
 
       return res.status(409).json({
         success: false,
-        message: `Ya existe el archivo ${fileName} con una configuración distinta.`
+        message: `Ya existe una configuración local con key ${projectKey}.`
       });
     }
 
@@ -294,14 +272,22 @@ async function createProject(req, res) {
       sonarProjectBaseDir: projectBaseDir
     };
 
-    await fs.writeFile(fullPath, JSON.stringify(projectData, null, 2), 'utf8');
+    const nextProjects = [...projects, projectData];
 
-    console.log('[createProject] local file written', { fileName, fullPath });
-    await logApp('info', '[createProject] local file written', { fileName, fullPath });
+    await writeBundle(
+      {
+        global: store.bundle.global,
+        projects: nextProjects
+      },
+      store.bundle.global.globalConfigDirectory
+    );
+
+    console.log('[createProject] local config updated', { projectKey });
+    await logApp('info', '[createProject] local config updated', { projectKey });
 
     return res.status(201).json({
       success: true,
-      fileName,
+      projectKey,
       message: warningMessage || 'Proyecto creado correctamente.'
     });
   } catch (error) {
@@ -319,12 +305,7 @@ async function createProject(req, res) {
 
 async function updateProject(req, res) {
   try {
-    await ensureUploadsDir();
-
-    const fileName = path.basename(req.params.fileName || '');
-    if (!fileName.toLowerCase().endsWith('.json') || fileName === GLOBAL_FILE_NAME) {
-      return res.status(400).json({ success: false, message: 'Archivo inválido.' });
-    }
+    const currentProjectKey = String(req.params.projectKey || '').trim();
 
     const payload = req.body || {};
     const missing = REQUIRED_PROJECT_FIELDS.filter(function(field) { return !payload[field] || !String(payload[field]).trim(); });
@@ -346,39 +327,29 @@ async function updateProject(req, res) {
       });
     }
 
-    const currentPath = getUploadFilePath(fileName);
-    let existingProject;
-
-    try {
-      existingProject = await readJsonFile(currentPath);
-    } catch (error) {
-      if (error?.code === 'ENOENT') {
-        return res.status(404).json({ success: false, message: 'Proyecto no encontrado.' });
-      }
-      throw error;
+    if (!isValidProjectKeyForFileName(currentProjectKey)) {
+      return res.status(400).json({ success: false, message: 'Proyecto inválido.' });
     }
 
-    const currentProjectKey = String(existingProject?.sonarProjectKey || path.basename(fileName, '.json')).trim();
+    const store = await getBundle();
+    const projects = Array.isArray(store?.bundle?.projects) ? store.bundle.projects : [];
+    const currentIndex = findProjectIndex(projects, currentProjectKey);
+
+    if (currentIndex < 0) {
+      return res.status(404).json({ success: false, message: 'Proyecto no encontrado.' });
+    }
+
     const keyChanged = currentProjectKey !== nextProjectKey;
 
     let warningMessage = '';
-    let targetFileName = fileName;
-    let targetPath = currentPath;
+    const duplicateIndex = findProjectIndex(projects, nextProjectKey);
 
     if (keyChanged) {
-      targetFileName = `${nextProjectKey}.json`;
-      targetPath = getUploadFilePath(targetFileName);
-
-      if (targetFileName !== fileName) {
-        try {
-          await fs.access(targetPath);
-          return res.status(409).json({
-            success: false,
-            message: `Ya existe un proyecto local con key ${nextProjectKey}.`
-          });
-        } catch (error) {
-          if (error?.code !== 'ENOENT') throw error;
-        }
+      if (duplicateIndex >= 0) {
+        return res.status(409).json({
+          success: false,
+          message: `Ya existe un proyecto local con key ${nextProjectKey}.`
+        });
       }
 
       const { sonarHostUrl, sonarToken } = await resolveConfig();
@@ -404,15 +375,20 @@ async function updateProject(req, res) {
       sonarProjectBaseDir: nextProjectBaseDir
     };
 
-    await fs.writeFile(targetPath, JSON.stringify(updatedProject, null, 2), 'utf8');
+    const nextProjects = [...projects];
+    nextProjects[currentIndex] = updatedProject;
 
-    if (targetPath !== currentPath) {
-      await fs.unlink(currentPath);
-    }
+    await writeBundle(
+      {
+        global: store.bundle.global,
+        projects: nextProjects
+      },
+      store.bundle.global.globalConfigDirectory
+    );
 
     return res.json({
       success: true,
-      fileName: targetFileName,
+      projectKey: nextProjectKey,
       message: warningMessage || 'Proyecto actualizado correctamente.'
     });
   } catch (error) {
@@ -430,23 +406,19 @@ async function updateProject(req, res) {
 
 async function deleteProject(req, res) {
   try {
-    await ensureUploadsDir();
-    const fileName = path.basename(req.params.fileName || '');
-    console.log('[deleteProject] request', { fileName });
-    await logApp('info', '[deleteProject] request', { fileName });
-
-    if (!fileName.toLowerCase().endsWith('.json') || fileName === GLOBAL_FILE_NAME) {
-      return res.status(400).json({ success: false, message: 'Archivo inválido.' });
-    }
-
-    const fullPath = getUploadFilePath(fileName);
-    const projectData = await readJsonFile(fullPath);
-    const projectKey = String(projectData?.sonarProjectKey || path.basename(fileName, '.json')).trim();
-    console.log('[deleteProject] normalized', { fileName, projectKey, fullPath });
-    await logApp('info', '[deleteProject] normalized', { fileName, projectKey, fullPath });
+    const projectKey = String(req.params.projectKey || '').trim();
+    console.log('[deleteProject] request', { projectKey });
+    await logApp('info', '[deleteProject] request', { projectKey });
 
     if (!isValidProjectKeyForFileName(projectKey)) {
       return res.status(400).json({ success: false, message: 'Proyecto inválido.' });
+    }
+
+    const store = await getBundle();
+    const projects = Array.isArray(store?.bundle?.projects) ? store.bundle.projects : [];
+    const currentIndex = findProjectIndex(projects, projectKey);
+    if (currentIndex < 0) {
+      return res.status(404).json({ success: false, message: 'Proyecto no encontrado.' });
     }
 
     const { sonarHostUrl, sonarToken } = await resolveConfig();
@@ -468,9 +440,20 @@ async function deleteProject(req, res) {
       warningMessage = `El proyecto ${projectKey} no existía en SonarQube; se eliminó solo la configuración local.`;
     }
 
-    await fs.unlink(fullPath);
-    console.log('[deleteProject] local file deleted', { fileName, fullPath, warningMessage });
-    await logApp('info', '[deleteProject] local file deleted', { fileName, fullPath, warningMessage });
+    const nextProjects = projects.filter(function(item, index) {
+      return index !== currentIndex;
+    });
+
+    await writeBundle(
+      {
+        global: store.bundle.global,
+        projects: nextProjects
+      },
+      store.bundle.global.globalConfigDirectory
+    );
+
+    console.log('[deleteProject] local config updated', { projectKey, warningMessage });
+    await logApp('info', '[deleteProject] local config updated', { projectKey, warningMessage });
 
     return res.json({ success: true, message: warningMessage || 'Proyecto eliminado correctamente.' });
   } catch (error) {

@@ -7,14 +7,9 @@ const { WebSocketServer } = require('ws');
 const { logApp } = require('../utils/logger');
 const { getGlobalSonarHostUrl } = require('../utils/envConfig');
 const {
-  GLOBAL_FILE_NAME,
-  ensureRootUploadsDir,
-  migrateLegacyUploads,
-  getUploadFilePath
-} = require('../utils/uploadsStorage');
-
-const GLOBAL_FILE_PATH = getUploadFilePath(GLOBAL_FILE_NAME);
-const WORKSPACE_BASE_DIR = '/workspace';
+  getBundle,
+  resolveWorkspacePath
+} = require('../utils/configStore');
 const SESSION_TTL_MS = 60 * 1000;
 const scannerSessions = new Map();
 
@@ -36,23 +31,26 @@ function normalizeList(rawValue = '') {
     .join(',');
 }
 
-async function readJsonFile(filePath) {
-  const raw = await fs.readFile(filePath, 'utf8');
-  return JSON.parse(raw);
-}
-
-async function ensureUploadsDir() {
-  await ensureRootUploadsDir();
-  await migrateLegacyUploads();
-}
-
 async function readGlobalConfig() {
-  return readJsonFile(GLOBAL_FILE_PATH);
+  const { bundle } = await getBundle();
+  return bundle?.global || {};
 }
 
 async function readProjectConfig(projectKey) {
-  const filePath = getUploadFilePath(`${projectKey}.json`);
-  return readJsonFile(filePath);
+  const { bundle } = await getBundle();
+  const projects = Array.isArray(bundle?.projects) ? bundle.projects : [];
+
+  const project = projects.find(function(item) {
+    return String(item?.sonarProjectKey || '').trim() === String(projectKey || '').trim();
+  });
+
+  if (!project) {
+    const error = new Error('Proyecto no encontrado.');
+    error.code = 'ENOENT';
+    throw error;
+  }
+
+  return project;
 }
 
 async function ensureDirectoryExists(targetPath, label) {
@@ -198,30 +196,6 @@ function sendSocketMessage(ws, message) {
   ws.send(JSON.stringify(message));
 }
 
-function resolveWorkspacePath(storedPath = '') {
-  const raw = String(storedPath || '').trim();
-  if (!raw) return '';
-
-  let withoutWorkspacePrefix = raw;
-  if (raw.startsWith('/workspace/')) {
-    withoutWorkspacePrefix = raw.slice('/workspace/'.length);
-  } else if (raw === '/workspace') {
-    withoutWorkspacePrefix = '';
-  }
-
-  const cleanRelative = withoutWorkspacePrefix.replace(/^\/+/, '');
-  const resolved = path.resolve(WORKSPACE_BASE_DIR, cleanRelative || '.');
-  const isInsideWorkspace = resolved === WORKSPACE_BASE_DIR
-    || resolved.startsWith(`${WORKSPACE_BASE_DIR}${path.sep}`);
-
-  if (!isInsideWorkspace) {
-    const error = new Error('La ruta debe estar dentro de /workspace.');
-    error.status = 400;
-    throw error;
-  }
-
-  return resolved;
-}
 
 function resolveWorkingDir(globalConfig, projectConfig) {
   const globalWorkingDir = resolveWorkspacePath(globalConfig.sonarWorkingDirectory);
@@ -258,8 +232,6 @@ async function buildScannerConfig(payload) {
     error.status = 400;
     throw error;
   }
-
-  await ensureUploadsDir();
 
   let projectConfig;
   let globalConfig;

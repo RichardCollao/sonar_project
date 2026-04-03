@@ -102,10 +102,11 @@
       const select = document.querySelector('#selProject');
       if (!select) return;
 
-      const options = projects.map(obj => `<option value="${obj.sonarProjectKey || ''}">${obj.sonarProjectKey || ''}</option>`);
+      const options = ['<option value="" selected disabled>Seleccionar proyecto</option>']
+        .concat(projects.map(obj => `<option value="${obj.sonarProjectKey || ''}">${obj.sonarProjectKey || ''}</option>`));
+
       select.innerHTML = options.join('\n');
-      select.disabled = select.length > 1 ? false : true;
-      select.selectedIndex = 0;
+      select.disabled = projects.length === 0;
       updateOpenSonarButtonState();
     }
 

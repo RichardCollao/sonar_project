@@ -77,15 +77,15 @@
         const dataSet = [];
 
         rows.forEach(function (row, index) {
-            const fileName = row.fileName || '';
+            const projectKey = row.sonarProjectKey || '';
 
             dataSet.push([
                 String(index + 1),
-                row.sonarProjectKey || '',
+                projectKey,
                 row.sonarProjectBaseDir ? `/workspace/${row.sonarProjectBaseDir}` : '',
                 `<div class="text-center d-flex justify-content-center gap-1">
-                    <button type="button" class="btn btn-outline-primary btn-sm btn-edit-project" data-file-name="${fileName}" data-project-key="${encodeURIComponent(row.sonarProjectKey || '')}" data-project-base-dir="${encodeURIComponent(row.sonarProjectBaseDir || '')}" title="Editar" onclick="editProject(this)"><i class="bi bi-pencil-square"></i></button>
-                    <button type="button" class="btn btn-outline-danger btn-sm btn-delete-project" data-file-name="${fileName}" title="Eliminar" onclick="deleteProject(this)"><i class="bi bi-trash3"></i></button>
+                    <button type="button" class="btn btn-outline-primary btn-sm btn-edit-project" data-project-key="${encodeURIComponent(projectKey)}" data-project-base-dir="${encodeURIComponent(row.sonarProjectBaseDir || '')}" title="Editar" onclick="editProject(this)"><i class="bi bi-pencil-square"></i></button>
+                    <button type="button" class="btn btn-outline-danger btn-sm btn-delete-project" data-project-key="${encodeURIComponent(projectKey)}" title="Eliminar" onclick="deleteProject(this)"><i class="bi bi-trash3"></i></button>
                 </div>`
             ]);
         });
@@ -105,14 +105,13 @@
     }
 
     async function editProject(button) {
-        const fileName = button?.dataset?.fileName || '';
-        if (!fileName) return;
-
         const currentProjectKey = decodeURIComponent(button?.dataset?.projectKey || '');
+        if (!currentProjectKey) return;
+
         const currentProjectBaseDir = decodeURIComponent(button?.dataset?.projectBaseDir || '');
 
         if (typeof openEditProjectModal === 'function') {
-            openEditProjectModal(fileName, currentProjectKey, currentProjectBaseDir);
+            openEditProjectModal(currentProjectKey, currentProjectBaseDir);
         }
     }
 
@@ -122,9 +121,11 @@
             const data = response?.data || {};
             const tokenInput = document.getElementById('globalSonarToken');
             const workingDirInput = document.getElementById('globalSonarWorkingDirectory');
+            const configDirInput = document.getElementById('globalConfigDirectory');
 
             if (tokenInput) tokenInput.value = data.sonarToken || '';
             if (workingDirInput && data.sonarWorkingDirectory) workingDirInput.value = data.sonarWorkingDirectory;
+            if (configDirInput && data.globalConfigDirectory) configDirInput.value = data.globalConfigDirectory;
             window.globalSonarHostUrl = data.sonarHostUrl || '';
         });
     }
@@ -136,7 +137,8 @@
 
         const payload = {
             sonarToken: document.getElementById('globalSonarToken').value.trim() || '',
-            sonarWorkingDirectory: document.getElementById('globalSonarWorkingDirectory').value.trim() || ''
+            sonarWorkingDirectory: document.getElementById('globalSonarWorkingDirectory').value.trim() || '',
+            globalConfigDirectory: document.getElementById('globalConfigDirectory').value.trim() || ''
         };
 
         request('/api/projects/global', 'POST', payload, function (json) {
@@ -163,8 +165,8 @@
 
     // Elimina proyecto (onclick desde HTML)
     async function deleteProject(button) {
-        const fileName = button.dataset.fileName;
-        if (!fileName) return;
+        const projectKey = decodeURIComponent(button.dataset.projectKey || '');
+        if (!projectKey) return;
 
         const result = await Swal.fire({
             title: '¿Eliminar proyecto?',
@@ -178,7 +180,7 @@
 
         if (!result.isConfirmed) return;
 
-        request(`/api/projects/${encodeURIComponent(fileName)}`, 'DELETE', null, function (response) {
+        request(`/api/projects/${encodeURIComponent(projectKey)}`, 'DELETE', null, function (response) {
             if (typeof loadProjects === 'function') {
                 setTimeout(loadProjects, 100);
             }
