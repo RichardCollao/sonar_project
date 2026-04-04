@@ -1,7 +1,7 @@
 <nav class="navbar navbar-expand-lg bg-body-tertiary border-bottom">
   <div class="container">
     <a class="navbar-brand fw-semibold" href="/sonar">
-      <i class="bi bi-cloud-check me-2"></i>Sonar Project
+      <i class="bi bi-tools me-2"></i>DevUtils
     </a>
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarMain"
       aria-controls="navbarMain" aria-expanded="false" aria-label="Toggle navigation">
@@ -14,20 +14,14 @@
             <i class="bi bi-cloud-check me-1"></i>Sonar
           </a>
         </li>
+      </ul>
+      <ul class="navbar-nav ms-auto mb-2 mb-lg-0">
         <li class="nav-item">
-          <a class="nav-link <%= activePage === 'sonar_config' ? 'active' : '' %>" aria-current="<%= activePage === 'sonar_config' ? 'page' : 'false' %>" href="/sonar_config">
+          <a class="nav-link <%= activePage === 'app_config' ? 'active' : '' %>" aria-current="<%= activePage === 'app_config' ? 'page' : 'false' %>" href="/app_config">
             <i class="bi bi-gear me-1"></i>Configuración
           </a>
         </li>
       </ul>
-      <div class="d-flex align-items-center gap-2">
-        <label for="themeSelect" class="form-label mb-0 text-body-secondary small"><i class="bi bi-circle-half"></i></label>
-        <select id="themeSelect" class="form-select form-select-sm" style="width: auto;"
-            onchange="toggleDarkMode(this.value === 'dark')">
-          <option value="light">Claro</option>
-          <option value="dark">Oscuro</option>
-        </select>
-      </div>
     </div>
   </div>
 </nav>

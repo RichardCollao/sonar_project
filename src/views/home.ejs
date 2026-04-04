@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>DevUtils</title>
+  </title>
+  <script>(function(){var t=localStorage.getItem('theme');if(t==='dark')document.documentElement.setAttribute('data-bs-theme','dark');}());</script>
+  <link href="/vendor/bootstrap/dist/css/bootstrap.min.css" rel="stylesheet" />
+  <link rel="stylesheet" href="/vendor/bootstrap-icons/font/bootstrap-icons.css" />
+  <link rel="stylesheet" href="/vendor/datatables.net-bs5/css/dataTables.bootstrap5.css" />
+  <link rel="stylesheet" href="/vendor/izitoast/css/iziToast.min.css" />
+  <link rel="stylesheet" href="/vendor/xterm/css/xterm.css" />
+  <link rel="stylesheet" href="/css/styles.css" />
+</head>
+
+<body class="bg-light">
+  <%- include('partials/loading') %>
+  <main class="container py-5">
+    <div>
+      <ul class="nav nav-tabs" id="mainTabs" role="tablist">
+        <li class="nav-item" role="presentation">
+          <button class="nav-link active" id="home-tab" data-bs-toggle="tab" data-bs-target="#home-tab-pane"
+            type="button" role="tab" aria-controls="home-tab-pane" aria-selected="true">Inicio</button>
+        </li>
+        <li class="nav-item" role="presentation">
+          <button class="nav-link" id="config-tab" data-bs-toggle="tab" data-bs-target="#config-tab-pane" type="button"
+            role="tab" aria-controls="config-tab-pane" aria-selected="false">Configuración</button>
+        </li>
+      </ul>
+
+      <div class="tab-content p-3" id="mainTabsContent">
+        <%- include('partials/inicio') %>
+        <%- include('partials/configuracion') %>
+      </div>
+    </div>
+  </main>
+  <script src="/vendor/jquery/dist/jquery.min.js"></script>
+  <script src="/vendor/bootstrap/dist/js/bootstrap.bundle.min.js"></script>
+  <script src="/vendor/datatables.net/js/dataTables.js"></script>
+  <script src="/vendor/datatables.net-bs5/js/dataTables.bootstrap5.js"></script>
+  <script src="/vendor/izitoast/js/iziToast.min.js"></script>
+  <script src="/vendor/sweetalert2/dist/sweetalert2.all.min.js"></script>
+  <script src="/vendor/xterm/lib/xterm.js"></script>
+  <script src="/vendor/xterm-addon-fit/lib/addon-fit.js"></script>
+  <script src="/js/functions.js?v=20260320e"></script>
+  <script src="/js/home.js?v=20260320e"></script>
+  <script src="/js/fileExplorer.js?v=20260329a"></script>
+  <script src="/js/scanner.js?v=20260324a"></script>
+</body>
+
+</html>

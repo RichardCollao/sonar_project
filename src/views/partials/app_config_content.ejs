@@ -1,0 +1,35 @@
+<div class="row mt-3">
+  <div class="d-flex justify-content-between align-items-center mb-2">
+    <h3 class="mb-0"><i class="bi bi-sliders"></i> Configuración</h3>
+  </div>
+  <hr>
+
+  <!-- Apariencia -->
+  <div class="col-12 mb-4">
+    <div class="card">
+      <div class="card-header d-flex align-items-center gap-2">
+        <i class="bi bi-palette"></i>
+        <span class="fw-semibold">Apariencia</span>
+      </div>
+      <div class="card-body">
+        <div class="row align-items-center">
+          <div class="col-auto">
+            <label for="themeSelect" class="form-label mb-0">Tema de la interfaz</label>
+            <div class="text-body-secondary small">Selecciona entre el modo claro y oscuro.</div>
+          </div>
+          <div class="col-auto ms-auto">
+            <div class="d-flex align-items-center gap-2">
+              <i class="bi bi-circle-half text-body-secondary"></i>
+              <select id="themeSelect" class="form-select form-select-sm" style="width: auto;"
+                onchange="toggleDarkMode(this.value === 'dark')">
+                <option value="light">Claro</option>
+                <option value="dark">Oscuro</option>
+              </select>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
