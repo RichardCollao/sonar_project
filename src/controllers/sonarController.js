@@ -1,4 +1,4 @@
-const { getGlobalSonarHostUrl, getWorkspaceBaseDir } = require('../utils/envConfig');
+const { getSonarHostUrl, getWorkspaceBaseDir } = require('../utils/envConfig');
 const {
   getBundle,
   writeBundle
@@ -82,7 +82,7 @@ async function resolveConfig() {
   const { bundle } = await getBundle();
   const globalConfig = bundle?.global || {};
 
-  const sonarHostUrl = normalizeHostUrl(getGlobalSonarHostUrl());
+  const sonarHostUrl = normalizeHostUrl(getSonarHostUrl());
   const sonarToken = String(globalConfig.sonarToken || '').trim();
 
   if (!sonarHostUrl || !sonarToken) {
@@ -246,7 +246,7 @@ async function createProject(req, res) {
         global: store.bundle.global,
         projects: nextProjects
       },
-      store.bundle.global.globalConfigDirectory
+      store.bundle.global.sonarConfigPath
     );
 
 
@@ -340,7 +340,7 @@ async function updateProject(req, res) {
         global: store.bundle.global,
         projects: nextProjects
       },
-      store.bundle.global.globalConfigDirectory
+      store.bundle.global.sonarConfigPath
     );
 
     return res.json({
@@ -396,7 +396,7 @@ async function deleteProject(req, res) {
         global: store.bundle.global,
         projects: nextProjects
       },
-      store.bundle.global.globalConfigDirectory
+      store.bundle.global.sonarConfigPath
     );
 
 

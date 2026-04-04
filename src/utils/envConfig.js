@@ -1,13 +1,17 @@
-function getGlobalSonarHostUrl() {
-  return String(process.env.globalSonarHostUrl || '').trim();
+function getSonarHostUrl() {
+  return String(process.env.sonarHostUrl || '').trim();
 }
 
 function getSonarWorkingDirectory() {
-  return String(process.env.globalSonarWorkingDirectory || 'sonar/temp').trim();
+  return String(process.env.sonarWorkingDirectory || 'sonar/temp').trim();
 }
 
-function getGlobalConfigDirectory() {
-  return String(process.env.globalConfigDirectory || 'sonar').trim();
+function getSonarConfigPath() {
+  return String(process.env.sonarConfigPath || 'sonar').trim();
+}
+
+function getAppConfigDirectory() {
+  return 'devutils';
 }
 
 function getWorkspaceBaseDir() {
@@ -19,8 +23,9 @@ function getWorkspaceBaseDir() {
 }
 
 module.exports = {
-  getGlobalSonarHostUrl,
+  getSonarHostUrl,
   getSonarWorkingDirectory,
-  getGlobalConfigDirectory,
+  getSonarConfigPath,
+  getAppConfigDirectory,
   getWorkspaceBaseDir
 };

@@ -2,7 +2,8 @@ const fs = require('node:fs/promises');
 const path = require('node:path');
 const {
   getSonarWorkingDirectory,
-  getGlobalConfigDirectory,
+  getSonarConfigPath,
+  getAppConfigDirectory,
   getWorkspaceBaseDir
 } = require('./envConfig');
 
@@ -61,9 +62,9 @@ function buildConfigFilePath(directoryRelative) {
   };
 }
 
-function normalizeBundle(raw) {
+function normalizeSonarBundle(raw) {
   const sonarWorkingDirectory = getSonarWorkingDirectory();
-  const globalConfigDirectory = getGlobalConfigDirectory();
+  const sonarConfigPath = getSonarConfigPath();
   const safe = raw && typeof raw === 'object' ? raw : {};
   const global = safe.global && typeof safe.global === 'object' ? safe.global : {};
   const projects = Array.isArray(safe.projects) ? safe.projects : [];
@@ -72,8 +73,7 @@ function normalizeBundle(raw) {
     global: {
       sonarToken: String(global.sonarToken || '').trim(),
       sonarWorkingDirectory,
-      globalConfigDirectory,
-      theme: ['light', 'dark'].includes(global.theme) ? global.theme : 'light'
+      sonarConfigPath
     },
     projects: projects
       .filter(function (item) {
@@ -91,9 +91,16 @@ function normalizeBundle(raw) {
   };
 }
 
+function normalizeAppBundle(raw) {
+  const safe = raw && typeof raw === 'object' ? raw : {};
+  return {
+    theme: ['light', 'dark'].includes(safe.theme) ? safe.theme : 'light'
+  };
+}
+
 async function getBundle() {
-  const globalConfigDirectory = getGlobalConfigDirectory();
-  const location = buildConfigFilePath(globalConfigDirectory);
+  const sonarConfigPath = getSonarConfigPath();
+  const location = buildConfigFilePath(sonarConfigPath);
 
   let raw;
   try {
@@ -106,28 +113,28 @@ async function getBundle() {
     const legacyLocation = buildConfigFilePath('sonar/config_directory');
     try {
       raw = await fs.readFile(legacyLocation.filePath, 'utf8');
-      const bundle = normalizeBundle(JSON.parse(raw));
+      const bundle = normalizeSonarBundle(JSON.parse(raw));
       return { bundle, ...legacyLocation };
     } catch (legacyError) {
       if (legacyError?.code === 'ENOENT') {
-        return { bundle: normalizeBundle({}), ...location };
+        return { bundle: normalizeSonarBundle({}), ...location };
       }
       throw legacyError;
     }
   }
 
-  const bundle = normalizeBundle(JSON.parse(raw));
+  const bundle = normalizeSonarBundle(JSON.parse(raw));
 
   return { bundle, ...location };
 }
 
 async function writeBundle(bundleInput, directoryRelative) {
-  const safeBundle = normalizeBundle(bundleInput);
-  const rawDir = String(directoryRelative || '').trim() || safeBundle.global.globalConfigDirectory;
+  const safeBundle = normalizeSonarBundle(bundleInput);
+  const rawDir = String(directoryRelative || '').trim() || safeBundle.global.sonarConfigPath;
   const targetDirectory = normalizeDirectory(rawDir);
   const location = buildConfigFilePath(targetDirectory);
 
-  safeBundle.global.globalConfigDirectory = targetDirectory;
+  safeBundle.global.sonarConfigPath = targetDirectory;
 
   await fs.mkdir(location.absoluteDirectory, { recursive: true });
   await fs.writeFile(location.filePath, JSON.stringify(safeBundle, null, 2), 'utf8');
@@ -135,9 +142,40 @@ async function writeBundle(bundleInput, directoryRelative) {
   return { bundle: safeBundle, ...location };
 }
 
+async function getAppBundle() {
+  const appConfigDirectory = getAppConfigDirectory();
+  const absoluteDirectory = path.resolve(WORKSPACE_BASE_DIR, appConfigDirectory);
+  const filePath = path.join(absoluteDirectory, CONFIG_FILE_NAME);
+
+  let raw;
+  try {
+    raw = await fs.readFile(filePath, 'utf8');
+  } catch (error) {
+    if (error?.code !== 'ENOENT') throw error;
+    return { bundle: normalizeAppBundle({}), absoluteDirectory, filePath };
+  }
+
+  const bundle = normalizeAppBundle(JSON.parse(raw));
+  return { bundle, absoluteDirectory, filePath };
+}
+
+async function writeAppBundle(appBundleInput) {
+  const safeBundle = normalizeAppBundle(appBundleInput);
+  const appConfigDirectory = getAppConfigDirectory();
+  const absoluteDirectory = path.resolve(WORKSPACE_BASE_DIR, appConfigDirectory);
+  const filePath = path.join(absoluteDirectory, CONFIG_FILE_NAME);
+
+  await fs.mkdir(absoluteDirectory, { recursive: true });
+  await fs.writeFile(filePath, JSON.stringify(safeBundle, null, 2), 'utf8');
+
+  return { bundle: safeBundle, absoluteDirectory, filePath };
+}
+
 module.exports = {
   CONFIG_FILE_NAME,
   resolveWorkspacePath,
   getBundle,
-  writeBundle
+  writeBundle,
+  getAppBundle,
+  writeAppBundle
 };

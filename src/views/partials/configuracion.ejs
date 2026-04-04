@@ -120,9 +120,7 @@
         if (!globalConfigForm?.reportValidity()) return;
 
         const payload = {
-            sonarToken: document.getElementById('globalSonarToken').value.trim() || '',
-            sonarWorkingDirectory: 'sonar/temp',
-            globalConfigDirectory: 'sonar'
+            sonarToken: document.getElementById('globalSonarToken').value.trim() || ''
         };
 
         request('/api/projects/global', 'POST', payload, function (json) {

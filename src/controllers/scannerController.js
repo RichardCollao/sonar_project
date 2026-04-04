@@ -4,7 +4,7 @@ const os = require('node:os');
 const { randomUUID } = require('node:crypto');
 const pty = require('node-pty');
 const { WebSocketServer } = require('ws');
-const { getGlobalSonarHostUrl } = require('../utils/envConfig');
+const { getSonarHostUrl } = require('../utils/envConfig');
 const {
   getBundle,
   resolveWorkspacePath
@@ -259,7 +259,7 @@ async function buildScannerConfig(payload) {
   }
 
   const sonarToken = String(globalConfig.sonarToken || '').trim();
-  const sonarHostUrl = getGlobalSonarHostUrl();
+  const sonarHostUrl = getSonarHostUrl();
   const projectBaseDir = resolveWorkspacePath(projectConfig.sonarProjectBaseDir);
   const workingDirectory = resolveWorkingDir(globalConfig, projectConfig);
 

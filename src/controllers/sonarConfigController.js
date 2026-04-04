@@ -1,14 +1,16 @@
 const fs = require('node:fs/promises');
 const {
-  getGlobalSonarHostUrl,
+  getSonarHostUrl,
   getSonarWorkingDirectory,
-  getGlobalConfigDirectory,
+  getSonarConfigPath,
   getWorkspaceBaseDir
 } = require('../utils/envConfig');
 const {
   resolveWorkspacePath,
   getBundle,
-  writeBundle
+  writeBundle,
+  getAppBundle,
+  writeAppBundle
 } = require('../utils/configStore');
 
 const REQUIRED_GLOBAL_FIELDS = [
@@ -21,18 +23,19 @@ function renderSonarConfig(req, res) {
 
 async function getGlobalConfig(req, res) {
   try {
-    const sonarHostUrl = getGlobalSonarHostUrl();
+    const sonarHostUrl = getSonarHostUrl();
     const sonarWorkingDirectory = getSonarWorkingDirectory();
-    const globalConfigDirectory = getGlobalConfigDirectory();
+    const sonarConfigPath = getSonarConfigPath();
     const { bundle } = await getBundle();
+    const { bundle: appBundle } = await getAppBundle();
     const global = bundle?.global || {};
 
     const data = {
       sonarToken: String(global.sonarToken || '').trim(),
       sonarHostUrl,
       sonarWorkingDirectory,
-      globalConfigDirectory,
-      theme: String(global.theme || 'light')
+      sonarConfigPath,
+      theme: String(appBundle.theme || 'light')
     };
 
     return res.json({ success: true, data });
@@ -86,9 +89,9 @@ async function saveGlobalConfig(req, res) {
   try {
     const payload = req.body || {};
     const missing = REQUIRED_GLOBAL_FIELDS.filter(function(field) { return !payload[field] || !String(payload[field]).trim(); });
-    const sonarHostUrl = getGlobalSonarHostUrl();
+    const sonarHostUrl = getSonarHostUrl();
     const sonarWorkingDirectory = getSonarWorkingDirectory();
-    const globalConfigDirectory = getGlobalConfigDirectory();
+    const sonarConfigPath = getSonarConfigPath();
 
     if (missing.length > 0) {
       return res.status(400).json({
@@ -100,7 +103,7 @@ async function saveGlobalConfig(req, res) {
     const data = {
       sonarToken: String(payload.sonarToken).trim(),
       sonarWorkingDirectory,
-      globalConfigDirectory
+      sonarConfigPath
     };
 
     const current = await getBundle();
@@ -109,7 +112,7 @@ async function saveGlobalConfig(req, res) {
       projects: Array.isArray(current?.bundle?.projects) ? current.bundle.projects : []
     };
 
-    await writeBundle(nextBundle, data.globalConfigDirectory);
+    await writeBundle(nextBundle, data.sonarConfigPath);
 
     const warnings = [];
 
@@ -120,7 +123,7 @@ async function saveGlobalConfig(req, res) {
     if (localhostWarning) warnings.push(localhostWarning);
 
     if (!sonarHostUrl) {
-      warnings.push("No se encontró 'globalSonarHostUrl' en el archivo .env.");
+      warnings.push("No se encontró 'sonarHostUrl' en el archivo .env.");
     }
 
     const warning = warnings.length > 0 ? warnings.join(' | ') : null;
@@ -136,9 +139,9 @@ async function saveTheme(req, res) {
     if (!['light', 'dark'].includes(theme)) {
       return res.status(400).json({ success: false, message: 'Tema inválido. Usa "light" o "dark".' });
     }
-    const current = await getBundle();
-    current.bundle.global.theme = theme;
-    await writeBundle(current.bundle, current.directoryRelative);
+    const { bundle: appBundle } = await getAppBundle();
+    appBundle.theme = theme;
+    await writeAppBundle(appBundle);
     return res.json({ success: true });
   } catch {
     return res.status(500).json({ success: false, message: 'No fue posible guardar el tema.' });
