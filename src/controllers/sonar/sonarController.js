@@ -10,7 +10,7 @@ const REQUIRED_PROJECT_FIELDS = [
 ];
 
 function renderSonar(req, res) {
-  res.render('sonar/sonar', { workspaceBaseDir: getWorkspaceBaseDir() });
+  res.render('sonar/index', { workspaceBaseDir: getWorkspaceBaseDir() });
 }
 
 async function getProjects(req, res) {

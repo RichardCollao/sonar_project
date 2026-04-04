@@ -1,5 +1,5 @@
 const renderAppConfig = (req, res) => {
-    res.render('app_config');
+    res.render('app/index');
 };
 
 module.exports = { renderAppConfig };
