@@ -50,6 +50,8 @@ let pendingRunPayload = null;
 let resizeTimeoutId = null;
 let latestFindingsReport = [];
 let latestFilesAnalyzedCount = 0;
+let latestExcludeGitIgnored = true;
+let latestGitIgnoreMessage = 'Se excluyen los archivos definidos en .gitignore.';
 let reportModalInstance = null;
 
 function byId(id) {
@@ -147,6 +149,10 @@ function formatGitMeta(git) {
 function buildReportSummaryHtml(totalFindings, totalFilesAnalyzed) {
   const findingsCount = Number.isFinite(Number(totalFindings)) ? Number(totalFindings) : 0;
   const filesCount = Number.isFinite(Number(totalFilesAnalyzed)) ? Number(totalFilesAnalyzed) : 0;
+  const gitIgnoreBadgeLabel = latestExcludeGitIgnored ? 'Excluidos' : 'Incluidos';
+  const gitIgnoreBadgeClass = latestExcludeGitIgnored
+    ? 'gitleaks-report-badge-files'
+    : 'gitleaks-report-badge-neutral';
 
   return `
     <div class="gitleaks-report-summary mt-3">
@@ -158,19 +164,61 @@ function buildReportSummaryHtml(totalFindings, totalFilesAnalyzed) {
         <span class="gitleaks-report-summary-label">Archivos analizados</span>
         <span class="badge gitleaks-report-badge gitleaks-report-badge-files">${filesCount}</span>
       </div>
+      <div class="gitleaks-report-summary-row">
+        <span class="gitleaks-report-summary-label">Archivos en .gitignore</span>
+        <span class="badge gitleaks-report-badge ${gitIgnoreBadgeClass}">${gitIgnoreBadgeLabel}</span>
+      </div>
     </div>
   `;
 }
 
-function renderFindingsReport(findings, totalFilesAnalyzed = 0) {
+function updateReportInfoText() {
+  const reportInfoText = byId('gitleaksReportInfoText');
+  if (!reportInfoText) return;
+
+  const suffix = latestGitIgnoreMessage ? ` ${latestGitIgnoreMessage}` : '';
+  reportInfoText.textContent = `Solo se muestran hallazgos detectados.${suffix}`;
+}
+
+function groupFindingsByFile(findings) {
+  const fileGroups = new Map();
+
+  findings.forEach(function(item) {
+    const filePath = String(item.hostFile || item.file || 'Archivo desconocido').trim() || 'Archivo desconocido';
+
+    if (!fileGroups.has(filePath)) {
+      fileGroups.set(filePath, []);
+    }
+
+    fileGroups.get(filePath).push(item);
+  });
+
+  return Array.from(fileGroups.entries())
+    .sort(function(left, right) {
+      return left[0].localeCompare(right[0], 'es');
+    })
+    .map(function(entry) {
+      return {
+        filePath: entry[0],
+        findings: entry[1].slice().sort(function(left, right) {
+          return Number(left.line || 0) - Number(right.line || 0);
+        })
+      };
+    });
+}
+
+function renderFindingsReport(findings, totalFilesAnalyzed = 0, options = {}) {
   latestFindingsReport = Array.isArray(findings) ? findings : [];
   latestFilesAnalyzedCount = Number.isFinite(Number(totalFilesAnalyzed)) ? Number(totalFilesAnalyzed) : 0;
+  latestExcludeGitIgnored = options.excludeGitIgnored !== false;
+  latestGitIgnoreMessage = String(options.gitIgnoreMessage || '').trim();
 
   const body = byId('gitleaksReportBody');
   const count = byId('gitleaksReportCount');
   if (!body || !count) return;
 
   count.textContent = `${latestFindingsReport.length} hallazgo${latestFindingsReport.length === 1 ? '' : 's'}`;
+  updateReportInfoText();
 
   if (!latestFindingsReport.length) {
     body.innerHTML = [
@@ -182,20 +230,32 @@ function renderFindingsReport(findings, totalFilesAnalyzed = 0) {
     return;
   }
 
-  body.innerHTML = latestFindingsReport.map(function (item, index) {
+  const groupedFindings = groupFindingsByFile(latestFindingsReport);
+
+  body.innerHTML = groupedFindings.map(function (group, groupIndex) {
     return `
-      <div class="card mb-3 border-warning-subtle">
+      <div class="card mb-3 border-primary-subtle">
         <div class="card-header d-flex justify-content-between align-items-center">
-          <span><strong>#${index + 1}</strong> ${escapeHtml(item.ruleId || 'rule')}</span>
-          <span class="badge text-bg-warning">Línea ${escapeHtml(item.line || '?')}</span>
+          <span><strong>Archivo #${groupIndex + 1}</strong></span>
+          <span class="badge text-bg-primary">${group.findings.length} hallazgo${group.findings.length === 1 ? '' : 's'}</span>
         </div>
         <div class="card-body">
-          <div class="mb-2"><strong>Archivo:</strong> <code>${escapeHtml(item.file || item.hostFile || '')}</code></div>
-          <div class="mb-2"><strong>Finding:</strong> <code>${escapeHtml(item.finding || '')}</code></div>
-          <div class="mb-2"><strong>Secret:</strong> <code>${escapeHtml(item.secret || '')}</code></div>
-          <div class="mb-2"><strong>Fingerprint:</strong> <code>${escapeHtml(item.fingerprint || '')}</code></div>
-          <hr>
-          ${formatGitMeta(item.git)}
+          <div class="mb-3"><strong>Archivo:</strong> <code>${escapeHtml(group.filePath)}</code></div>
+          ${group.findings.map(function(item, findingIndex) {
+            return `
+              <div class="gitleaks-finding-item ${findingIndex > 0 ? 'mt-3 pt-3 border-top' : ''}">
+                <div class="d-flex justify-content-between align-items-center mb-2">
+                  <span><strong>${escapeHtml(item.ruleId || 'rule')}</strong></span>
+                  <span class="badge text-bg-warning">Línea ${escapeHtml(item.line || '?')}</span>
+                </div>
+                <div class="mb-2"><strong>Finding:</strong> <code>${escapeHtml(item.finding || '')}</code></div>
+                <div class="mb-2"><strong>Secret:</strong> <code>${escapeHtml(item.secret || '')}</code></div>
+                <div class="mb-2"><strong>Fingerprint:</strong> <code>${escapeHtml(item.fingerprint || '')}</code></div>
+                <hr>
+                ${formatGitMeta(item.git)}
+              </div>
+            `;
+          }).join('')}
         </div>
       </div>
     `;
@@ -277,9 +337,12 @@ function downloadReportPdf() {
   y = addPdfLine(doc, `Generado: ${formatDateTime24h(new Date())}`, 14, y, pageWidth, 5);
   y = addPdfLine(doc, `Total hallazgos: ${findings.length}`, 14, y, pageWidth, 5);
   y = addPdfLine(doc, `Archivos analizados: ${latestFilesAnalyzedCount}`, 14, y, pageWidth, 5);
+  y = addPdfLine(doc, latestGitIgnoreMessage || 'Se excluyen los archivos definidos en .gitignore.', 14, y, pageWidth, 5);
   y += 2;
 
-  findings.forEach(function (item, index) {
+  const groupedFindings = groupFindingsByFile(findings);
+
+  groupedFindings.forEach(function (group, groupIndex) {
     if (y > 260) {
       doc.addPage();
       y = 20;
@@ -287,29 +350,41 @@ function downloadReportPdf() {
 
     doc.setFont('helvetica', 'bold');
     doc.setFontSize(11);
-    y = addPdfLine(doc, `#${index + 1} - ${item.ruleId || 'rule'}`, 14, y, pageWidth, 5);
-
+    y = addPdfLine(doc, `Archivo #${groupIndex + 1}`, 14, y, pageWidth, 5);
     doc.setFont('helvetica', 'normal');
     doc.setFontSize(10);
-    y = addPdfLine(doc, `Archivo: ${item.file || item.hostFile || ''}`, 14, y, pageWidth, 5);
-    y = addPdfLine(doc, `Línea: ${item.line || ''}`, 14, y, pageWidth, 5);
-    y = addPdfLine(doc, `Finding: ${item.finding || ''}`, 14, y, pageWidth, 5);
-    y = addPdfLine(doc, `Secret: ${item.secret || ''}`, 14, y, pageWidth, 5);
-    y = addPdfLine(doc, `Fingerprint: ${item.fingerprint || ''}`, 14, y, pageWidth, 5);
+    y = addPdfLine(doc, `Ruta: ${group.filePath}`, 14, y, pageWidth, 5);
+    y = addPdfLine(doc, `Hallazgos en archivo: ${group.findings.length}`, 14, y, pageWidth, 5);
+    y += 2;
 
-    const git = item.git || null;
-    if (git) {
-      const gitEmail = git.authorMail ? ` <${git.authorMail}>` : '';
-      const commitLabel = getCommitDisplayValue(git);
-      y = addPdfLine(doc, `Autor: ${git.author || 'N/A'}${gitEmail}`, 14, y, pageWidth, 5);
-      y = addPdfLine(doc, `Fecha: ${formatDateTime24h(git.authorDate) || 'N/A'}`, 14, y, pageWidth, 5);
-      y = addPdfLine(doc, `Commit: ${commitLabel}`, 14, y, pageWidth, 5);
-      y = addPdfLine(doc, `Resumen: ${git.summary || 'N/A'}`, 14, y, pageWidth, 5);
-    } else {
-      y = addPdfLine(doc, 'Git: Sin datos disponibles', 14, y, pageWidth, 5);
-    }
+    group.findings.forEach(function(item, findingIndex) {
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(10);
+      y = addPdfLine(doc, `Hallazgo ${findingIndex + 1}: ${item.ruleId || 'rule'}`, 14, y, pageWidth, 5);
 
-    y += 4;
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(10);
+      y = addPdfLine(doc, `Línea: ${item.line || ''}`, 14, y, pageWidth, 5);
+      y = addPdfLine(doc, `Finding: ${item.finding || ''}`, 14, y, pageWidth, 5);
+      y = addPdfLine(doc, `Secret: ${item.secret || ''}`, 14, y, pageWidth, 5);
+      y = addPdfLine(doc, `Fingerprint: ${item.fingerprint || ''}`, 14, y, pageWidth, 5);
+
+      const git = item.git || null;
+      if (git) {
+        const gitEmail = git.authorMail ? ` <${git.authorMail}>` : '';
+        const commitLabel = getCommitDisplayValue(git);
+        y = addPdfLine(doc, `Autor: ${git.author || 'N/A'}${gitEmail}`, 14, y, pageWidth, 5);
+        y = addPdfLine(doc, `Fecha: ${formatDateTime24h(git.authorDate) || 'N/A'}`, 14, y, pageWidth, 5);
+        y = addPdfLine(doc, `Commit: ${commitLabel}`, 14, y, pageWidth, 5);
+        y = addPdfLine(doc, `Resumen: ${git.summary || 'N/A'}`, 14, y, pageWidth, 5);
+      } else {
+        y = addPdfLine(doc, 'Git: Sin datos disponibles', 14, y, pageWidth, 5);
+      }
+
+      y += 3;
+    });
+
+    y += 1;
     doc.setDrawColor(200, 200, 200);
     doc.line(14, y, pageWidth - 14, y);
     y += 6;
@@ -381,9 +456,11 @@ function ensureTerminal() {
 
 function getPayload() {
   const directoryInput = byId('txtGitleaksDirectory');
+  const excludeGitIgnoredCheckbox = byId('chkExcludeGitIgnored');
 
   return {
-    directory: directoryInput?.value || ''
+    directory: directoryInput?.value || '',
+    excludeGitIgnored: excludeGitIgnoredCheckbox ? !!excludeGitIgnoredCheckbox.checked : true
   };
 }
 
@@ -480,7 +557,10 @@ function connectSocket() {
     }
 
     if (message.type === 'report') {
-      renderFindingsReport(message.findings || [], message.totalFilesAnalyzed || 0);
+      renderFindingsReport(message.findings || [], message.totalFilesAnalyzed || 0, {
+        excludeGitIgnored: message.excludeGitIgnored !== false,
+        gitIgnoreMessage: message.gitIgnoreMessage || ''
+      });
       openReportModal();
     }
   });

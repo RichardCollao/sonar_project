@@ -1,163 +1,186 @@
 <!-- Gitleaks -->
-<div class="row mt-3">
-  <div class="d-flex justify-content-between align-items-center mb-2">
-    <h3 class="mb-0"><i class="bi bi-shield-lock"></i> Gitleaks</h3>
-  </div>
-  <hr>
-
-  <div class="col-md-10">
-    <label for="txtGitleaksDirectory" class="form-label">DIRECTORIO</label>
-    <div class="input-group input-group-sm">
-      <input type="text" id="txtGitleaksDirectory" class="form-control" placeholder="Seleccionar directorio"
-        readonly>
-      <button type="button" class="btn btn-outline-secondary" onclick="openGlobalFileExplorerModal('txtGitleaksDirectory')">
-        <i class="bi bi-folder2-open me-1"></i>Explorar
-      </button>
+<div class="row mt-3 g-2 align-items-end">
+    <div class="d-flex justify-content-between align-items-center mb-2">
+        <h3 class="mb-0"><i class="bi bi-shield-lock"></i> Gitleaks</h3>
     </div>
-  </div>
+    <hr>
 
-  <div class="col-md-2 d-flex align-items-end">
-    <button type="button" id="btnRunGitleaks" class="btn btn-sm btn-outline-secondary w-100" disabled>
-      <i class="bi bi-terminal me-2"></i>Gitleaks
-    </button>
-  </div>
+    <div class="col-md-7">
+        <label for="txtGitleaksDirectory" class="form-label">DIRECTORIO</label>
+        <div class="input-group input-group-sm">
+            <input type="text" id="txtGitleaksDirectory" class="form-control" placeholder="Seleccionar directorio"
+                readonly>
+            <button type="button" class="btn btn-outline-secondary"
+                onclick="openGlobalFileExplorerModal('txtGitleaksDirectory')">
+                <i class="bi bi-folder2-open me-1"></i>Explorar
+            </button>
+        </div>
+    </div>
+
+    <div class="col-md-3">
+        <div class="form-label d-block invisible" aria-hidden="true">OPCIÓN</div>
+        <div class="d-flex align-items-center justify-content-center gap-2 pb-1">
+                <input class="form-check-input m-0" type="checkbox" value="1" id="chkExcludeGitIgnored" checked>
+                <label class="form-check-label mb-0" for="chkExcludeGitIgnored">
+                    Excluir <b>.gitignore</b>
+                </label>
+        </div>
+    </div>
+
+    <div class="col-md-2">
+        <label for="btnRunGitleaks" class="form-label">&nbsp;</label>
+        <button type="button" id="btnRunGitleaks" class="btn btn-sm btn-outline-secondary w-100" disabled>
+            <i class="bi bi-terminal me-2"></i>Gitleaks
+        </button>
+    </div>
 </div>
 
 <hr>
 
 <div class="row mt-3">
-  <div class="col-md-4">
-    <i class="bi bi-terminal"></i> Consola Gitleaks
-  </div>
-  <div class="col-md-8 text-end">
-    <button type="button" id="btnOpenGitleaksReport" class="btn btn-sm btn-outline-secondary" disabled>
-      <i class="bi bi-card-list me-1"></i>Reporte
-    </button>
-    <button type="button" id="btnClearGitleaksConsole" class="btn btn-sm btn-outline-secondary">
-      <i class="bi bi-eraser me-1"></i>Limpiar
-    </button>
-  </div>
+    <div class="col-md-4">
+        <i class="bi bi-terminal"></i> Consola Gitleaks
+    </div>
+    <div class="col-md-8 text-end">
+        <button type="button" id="btnOpenGitleaksReport" class="btn btn-sm btn-outline-secondary" disabled>
+            <i class="bi bi-card-list me-1"></i>Reporte
+        </button>
+        <button type="button" id="btnClearGitleaksConsole" class="btn btn-sm btn-outline-secondary">
+            <i class="bi bi-eraser me-1"></i>Limpiar
+        </button>
+    </div>
 </div>
 
 <div class="row mt-3">
-  <div class="col-md-12">
-    <div id="gitleaksTerminal" class="scanner-terminal">
-      <div id="gitleaksTerminalInner" class="scanner-terminal-inner"></div>
+    <div class="col-md-12">
+        <div id="gitleaksTerminal" class="scanner-terminal">
+            <div id="gitleaksTerminalInner" class="scanner-terminal-inner"></div>
+        </div>
     </div>
-  </div>
 </div>
 
 <%- include('../sonar/fileExplorerModal') %>
 
-<div class="modal fade" id="gitleaksReportModal" tabindex="-1" aria-labelledby="gitleaksReportModalLabel" aria-hidden="true">
-  <div class="modal-dialog modal-xl modal-dialog-scrollable modal-dialog-centered">
-    <div class="modal-content">
-      <div class="modal-header">
-        <h5 class="modal-title" id="gitleaksReportModalLabel">
-          <i class="bi bi-shield-exclamation me-2"></i>Reporte de hallazgos Gitleaks
-        </h5>
-        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
-      </div>
-      <div class="modal-body">
-        <div class="d-flex justify-content-between align-items-center mb-3">
-          <span class="text-muted">Solo se muestran hallazgos detectados.</span>
-          <span class="badge text-bg-dark" id="gitleaksReportCount">0 hallazgos</span>
+    <div class="modal fade" id="gitleaksReportModal" tabindex="-1" aria-labelledby="gitleaksReportModalLabel"
+        aria-hidden="true">
+        <div class="modal-dialog modal-xl modal-dialog-scrollable modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="gitleaksReportModalLabel">
+                        <i class="bi bi-shield-exclamation me-2"></i>Reporte de hallazgos Gitleaks
+                    </h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <span class="text-muted" id="gitleaksReportInfoText">Solo se muestran hallazgos
+                            detectados.</span>
+                        <span class="badge text-bg-dark" id="gitleaksReportCount">0 hallazgos</span>
+                    </div>
+                    <div id="gitleaksReportBody"></div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-primary" id="btnDownloadGitleaksPdf" disabled>
+                        <i class="bi bi-file-earmark-pdf me-1"></i>Descargar PDF
+                    </button>
+                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cerrar</button>
+                </div>
+            </div>
         </div>
-        <div id="gitleaksReportBody"></div>
-      </div>
-      <div class="modal-footer">
-        <button type="button" class="btn btn-primary" id="btnDownloadGitleaksPdf" disabled>
-          <i class="bi bi-file-earmark-pdf me-1"></i>Descargar PDF
-        </button>
-        <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cerrar</button>
-      </div>
     </div>
-  </div>
-</div>
 
-<style>
-  input[readonly] {
-    user-select: none;
-  }
+    <style>
+        input[readonly] {
+            user-select: none;
+        }
 
-  #gitleaksReportModal code {
-    color: #0b3d91;
-    background-color: #eef4ff;
-    border-radius: 0.25rem;
-    padding: 0.1rem 0.3rem;
-  }
+        #gitleaksReportModal code {
+            color: #0b3d91;
+            background-color: #eef4ff;
+            border-radius: 0.25rem;
+            padding: 0.1rem 0.3rem;
+        }
 
-  #gitleaksReportModal .card-header code,
-  #gitleaksReportModal .card-body code {
-    color: #0b3d91;
-  }
+        #gitleaksReportModal .card-header code,
+        #gitleaksReportModal .card-body code {
+            color: #0b3d91;
+        }
 
-  #gitleaksReportModal .gitleaks-report-summary {
-    background: #f8fafc;
-    border: 1px solid #dbe7ff;
-    border-radius: 0.75rem;
-    padding: 1rem;
-  }
+        #gitleaksReportModal .gitleaks-report-summary {
+            background: #f8fafc;
+            border: 1px solid #dbe7ff;
+            border-radius: 0.75rem;
+            padding: 1rem;
+        }
 
-  #gitleaksReportModal .gitleaks-report-summary-row {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 1rem;
-  }
+        #gitleaksReportModal .gitleaks-report-summary-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 1rem;
+        }
 
-  #gitleaksReportModal .gitleaks-report-summary-row + .gitleaks-report-summary-row {
-    margin-top: 0.75rem;
-    padding-top: 0.75rem;
-    border-top: 1px solid #dbe7ff;
-  }
+        #gitleaksReportModal .gitleaks-report-summary-row+.gitleaks-report-summary-row {
+            margin-top: 0.75rem;
+            padding-top: 0.75rem;
+            border-top: 1px solid #dbe7ff;
+        }
 
-  #gitleaksReportModal .gitleaks-report-summary-label {
-    font-weight: 600;
-    color: #1e293b;
-  }
+        #gitleaksReportModal .gitleaks-report-summary-label {
+            font-weight: 600;
+            color: #1e293b;
+        }
 
-  #gitleaksReportModal .gitleaks-report-badge {
-    min-width: 3.5rem;
-    padding: 0.45rem 0.75rem;
-    border-radius: 999px;
-    font-size: 0.9rem;
-  }
+        #gitleaksReportModal .gitleaks-report-badge {
+            min-width: 3.5rem;
+            padding: 0.45rem 0.75rem;
+            border-radius: 999px;
+            font-size: 0.9rem;
+        }
 
-  #gitleaksReportModal .gitleaks-report-badge-findings {
-    background-color: #0b3d91;
-    color: #ffffff;
-  }
+        #gitleaksReportModal .gitleaks-report-badge-findings {
+            background-color: #0b3d91;
+            color: #ffffff;
+        }
 
-  #gitleaksReportModal .gitleaks-report-badge-files {
-    background-color: #dbeafe;
-    color: #0b3d91;
-  }
-</style>
+        #gitleaksReportModal .gitleaks-report-badge-files {
+            background-color: #dbeafe;
+            color: #0b3d91;
+        }
 
-<script>
-  document.addEventListener('DOMContentLoaded', function () {
-    const directoryInput = document.querySelector('#txtGitleaksDirectory');
-    if (directoryInput) {
-      directoryInput.addEventListener('input', updateRunGitleaksButtonState);
-      directoryInput.addEventListener('change', updateRunGitleaksButtonState);
-    }
+        #gitleaksReportModal .gitleaks-report-badge-neutral {
+            background-color: #e2e8f0;
+            color: #334155;
+        }
 
-    const modalAcceptButton = document.querySelector('#btnAcceptFileExplorer');
-    if (modalAcceptButton) {
-      modalAcceptButton.addEventListener('click', function () {
-        setTimeout(updateRunGitleaksButtonState, 0);
-      });
-    }
+        #gitleaksReportModal .gitleaks-finding-item hr {
+            margin: 0.75rem 0;
+        }
+    </style>
 
-    updateRunGitleaksButtonState();
-  });
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            const directoryInput = document.querySelector('#txtGitleaksDirectory');
+            if (directoryInput) {
+                directoryInput.addEventListener('input', updateRunGitleaksButtonState);
+                directoryInput.addEventListener('change', updateRunGitleaksButtonState);
+            }
 
-  function updateRunGitleaksButtonState() {
-    const directoryInput = document.querySelector('#txtGitleaksDirectory');
-    const button = document.querySelector('#btnRunGitleaks');
-    if (!button) return;
+            const modalAcceptButton = document.querySelector('#btnAcceptFileExplorer');
+            if (modalAcceptButton) {
+                modalAcceptButton.addEventListener('click', function () {
+                    setTimeout(updateRunGitleaksButtonState, 0);
+                });
+            }
 
-    button.disabled = !(directoryInput && String(directoryInput.value || '').trim());
-  }
-</script>
+            updateRunGitleaksButtonState();
+        });
+
+        function updateRunGitleaksButtonState() {
+            const directoryInput = document.querySelector('#txtGitleaksDirectory');
+            const button = document.querySelector('#btnRunGitleaks');
+            if (!button) return;
+
+            button.disabled = !(directoryInput && String(directoryInput.value || '').trim());
+        }
+    </script>

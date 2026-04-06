@@ -95,6 +95,127 @@ async function countAccessibleFilesInDirectory(targetPath) {
   return count;
 }
 
+async function collectAccessibleFilesInDirectory(targetPath) {
+  let entries;
+
+  try {
+    entries = await fs.readdir(targetPath, { withFileTypes: true });
+  } catch (error) {
+    if (error?.code === 'EACCES' || error?.code === 'EPERM' || error?.code === 'ENOENT') {
+      return [];
+    }
+
+    throw error;
+  }
+
+  const files = [];
+
+  for (const entry of entries) {
+    const entryPath = path.join(targetPath, entry.name);
+
+    if (entry.isDirectory()) {
+      const nestedFiles = await collectAccessibleFilesInDirectory(entryPath);
+      files.push(...nestedFiles);
+      continue;
+    }
+
+    if (entry.isFile()) {
+      files.push(entryPath);
+    }
+  }
+
+  return files;
+}
+
+async function getGitIncludedFiles(sourceDirectory) {
+  const repoRoot = await getRepoRootForPath(sourceDirectory, getBlameMetadata.repoCache);
+  if (!repoRoot) return null;
+
+  const relativeSourcePath = path.relative(repoRoot, sourceDirectory);
+  const pathspec = relativeSourcePath ? toPosixPath(relativeSourcePath) : '.';
+
+  try {
+    const result = await execFileAsync('git', [
+      '-C',
+      repoRoot,
+      'ls-files',
+      '-z',
+      '--cached',
+      '--others',
+      '--exclude-standard',
+      '--full-name',
+      '--',
+      pathspec
+    ], {
+      maxBuffer: 20 * 1024 * 1024
+    });
+
+    const files = String(result.stdout || '')
+      .split('\0')
+      .filter(Boolean)
+      .map(function(relativeFilePath) {
+        return path.resolve(repoRoot, relativeFilePath);
+      })
+      .filter(function(absoluteFilePath) {
+        const resolved = path.resolve(absoluteFilePath);
+        return resolved === sourceDirectory || resolved.startsWith(`${sourceDirectory}${path.sep}`);
+      });
+
+    return {
+      repoRoot,
+      files
+    };
+  } catch {
+    return null;
+  }
+}
+
+async function createFilteredScanDirectory(sourceDirectory, filePaths) {
+  const tempRootDirectory = await fs.mkdtemp(path.join(WORKSPACE_BASE_DIR, '.gitleaks-scan-'));
+  const scanSourceDirectory = path.join(tempRootDirectory, path.basename(sourceDirectory) || 'source');
+
+  await fs.mkdir(scanSourceDirectory, { recursive: true });
+
+  let copiedFilesCount = 0;
+
+  for (const originalFilePath of filePaths) {
+    const relativeFilePath = path.relative(sourceDirectory, originalFilePath);
+    if (!relativeFilePath || relativeFilePath.startsWith('..')) {
+      continue;
+    }
+
+    const destinationFilePath = path.join(scanSourceDirectory, relativeFilePath);
+
+    try {
+      await fs.mkdir(path.dirname(destinationFilePath), { recursive: true });
+      await fs.copyFile(originalFilePath, destinationFilePath);
+      copiedFilesCount += 1;
+    } catch (error) {
+      if (error?.code === 'EACCES' || error?.code === 'EPERM' || error?.code === 'ENOENT') {
+        continue;
+      }
+
+      throw error;
+    }
+  }
+
+  return {
+    tempRootDirectory,
+    scanSourceDirectory,
+    copiedFilesCount
+  };
+}
+
+async function cleanupPreparedScan(config) {
+  const tempRootDirectory = String(config?.tempRootDirectory || '').trim();
+  if (!tempRootDirectory) return;
+
+  try {
+    await fs.rm(tempRootDirectory, { recursive: true, force: true });
+  } catch {
+  }
+}
+
 function assertInsideWorkspace(absolutePath) {
   const resolved = path.resolve(absolutePath);
   const isInsideWorkspace = resolved === WORKSPACE_BASE_DIR
@@ -300,6 +421,7 @@ async function enrichFindingsWithGitMetadata(findings, sessionConfig) {
 
   const sourceContainerDirectory = String(sessionConfig?.sourceContainerDirectory || '').trim();
   const sourceHostDirectory = String(sessionConfig?.sourceDirectory || '').trim();
+  const scanContainerDirectory = String(sessionConfig?.scanContainerDirectory || sourceContainerDirectory).trim();
 
   const enriched = [];
 
@@ -311,8 +433,8 @@ async function enrichFindingsWithGitMetadata(findings, sessionConfig) {
       hostFilePath = sourceHostDirectory;
     }
 
-    if (sourceContainerDirectory && containerFilePath.startsWith(`${sourceContainerDirectory}/`) && sourceHostDirectory) {
-      const relative = containerFilePath.slice(sourceContainerDirectory.length).replace(/^\/+/, '');
+    if (scanContainerDirectory && containerFilePath.startsWith(`${scanContainerDirectory}/`) && sourceHostDirectory) {
+      const relative = containerFilePath.slice(scanContainerDirectory.length).replace(/^\/+/, '');
       hostFilePath = path.resolve(sourceHostDirectory, relative);
     }
 
@@ -337,6 +459,7 @@ async function enrichFindingsWithGitMetadata(findings, sessionConfig) {
 
 async function buildGitleaksConfig(payload) {
   const selectedDirectory = String(payload.directory || payload.sourceDirectory || '').trim();
+  const excludeGitIgnored = payload.excludeGitIgnored !== false;
 
   if (!selectedDirectory) {
     const error = new Error('Debe seleccionar un directorio antes de ejecutar Gitleaks.');
@@ -347,9 +470,32 @@ async function buildGitleaksConfig(payload) {
   const sourceDirectory = resolveWorkspacePath(selectedDirectory);
   assertInsideWorkspace(sourceDirectory);
   await ensureDirectoryExists(sourceDirectory, 'Directorio seleccionado');
-  const totalFilesAnalyzed = await countAccessibleFilesInDirectory(sourceDirectory);
-
   const sourceContainerDirectory = toContainerWorkspacePath(sourceDirectory);
+  let scanSourceDirectory = sourceDirectory;
+  let scanContainerDirectory = sourceContainerDirectory;
+  let tempRootDirectory = '';
+  let totalFilesAnalyzed = await countAccessibleFilesInDirectory(sourceDirectory);
+
+  try {
+    if (excludeGitIgnored) {
+      const gitIncludedFiles = await getGitIncludedFiles(sourceDirectory);
+
+      if (gitIncludedFiles) {
+        const filteredScan = await createFilteredScanDirectory(sourceDirectory, gitIncludedFiles.files);
+        scanSourceDirectory = filteredScan.scanSourceDirectory;
+        scanContainerDirectory = toContainerWorkspacePath(scanSourceDirectory);
+        tempRootDirectory = filteredScan.tempRootDirectory;
+        totalFilesAnalyzed = filteredScan.copiedFilesCount;
+      }
+    } else {
+      const accessibleFiles = await collectAccessibleFilesInDirectory(sourceDirectory);
+      totalFilesAnalyzed = accessibleFiles.length;
+    }
+  } catch (error) {
+    await cleanupPreparedScan({ tempRootDirectory });
+    throw error;
+  }
+
   const gitleaksShellScript = [
     'if gitleaks dir --help | grep -q -- --no-git; then',
     '  gitleaks dir --no-git "$1" --verbose;',
@@ -366,13 +512,20 @@ async function buildGitleaksConfig(payload) {
     '-lc',
     gitleaksShellScript,
     '--',
-    sourceContainerDirectory
+    scanContainerDirectory
   ];
 
   return {
     sourceDirectory,
     sourceContainerDirectory,
+    scanSourceDirectory,
+    scanContainerDirectory,
+    tempRootDirectory,
     totalFilesAnalyzed,
+    excludeGitIgnored,
+    gitIgnoreMessage: excludeGitIgnored
+      ? 'Se excluyen los archivos definidos en .gitignore.'
+      : 'No se excluyen los archivos definidos en .gitignore.',
     displayCommand: buildDisplayCommand(args),
     rawCommand: buildRawCommand(args)
   };
@@ -462,6 +615,7 @@ function initGitleaksWebSocket(server) {
     let scannerProcess;
     let scannerOutput = '';
     let currentScanConfig = null;
+    let currentCleanupPromise = Promise.resolve();
 
     function writeScanCommand(config) {
       currentScanConfig = config;
@@ -511,19 +665,25 @@ function initGitleaksWebSocket(server) {
 
     scannerProcess.onExit(async function(event) {
       const exitCode = Number.isFinite(event?.exitCode) ? event.exitCode : 1;
+      const activeConfig = currentScanConfig || session || null;
 
       try {
         const findings = parseGitleaksFindings(scannerOutput);
-        const findingsWithGit = await enrichFindingsWithGitMetadata(findings, currentScanConfig || session || null);
+        const findingsWithGit = await enrichFindingsWithGitMetadata(findings, activeConfig);
 
         sendSocketMessage(ws, {
           type: 'report',
           findings: findingsWithGit,
           totalFindings: findingsWithGit.length,
-          totalFilesAnalyzed: Number(currentScanConfig?.totalFilesAnalyzed || session?.totalFilesAnalyzed || 0)
+          totalFilesAnalyzed: Number(activeConfig?.totalFilesAnalyzed || 0),
+          excludeGitIgnored: activeConfig?.excludeGitIgnored !== false,
+          gitIgnoreMessage: activeConfig?.gitIgnoreMessage || ''
         });
       } catch {
       }
+
+      currentCleanupPromise = cleanupPreparedScan(activeConfig);
+      await currentCleanupPromise;
 
       sendSocketMessage(ws, {
         type: 'exit',
@@ -573,6 +733,10 @@ function initGitleaksWebSocket(server) {
     });
 
     ws.on('close', function() {
+      currentCleanupPromise = currentCleanupPromise.then(function() {
+        return cleanupPreparedScan(currentScanConfig || session || null);
+      });
+
       try {
         scannerProcess.kill();
       } catch {
