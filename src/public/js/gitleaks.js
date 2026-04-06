@@ -2,6 +2,7 @@ document.addEventListener('DOMContentLoaded', function () {
   runButton = byId('btnRunGitleaks');
   clearConsoleButton = byId('btnClearGitleaksConsole');
   reportButton = byId('btnOpenGitleaksReport');
+  downloadPdfButton = byId('btnDownloadGitleaksPdf');
 
   ensureTerminal();
   setRunButtonState(false);
@@ -17,6 +18,12 @@ document.addEventListener('DOMContentLoaded', function () {
   if (reportButton) {
     reportButton.addEventListener('click', function () {
       openReportModal();
+    });
+  }
+
+  if (downloadPdfButton) {
+    downloadPdfButton.addEventListener('click', function () {
+      downloadReportPdf();
     });
   }
 
@@ -37,6 +44,7 @@ let socket = null;
 let runButton = null;
 let clearConsoleButton = null;
 let reportButton = null;
+let downloadPdfButton = null;
 let terminalInputDisposable = null;
 let pendingRunPayload = null;
 let resizeTimeoutId = null;
@@ -56,6 +64,12 @@ function setRunButtonState(disabled) {
 function setReportButtonState(disabled) {
   if (reportButton) {
     reportButton.disabled = !!disabled;
+  }
+}
+
+function setDownloadPdfButtonState(disabled) {
+  if (downloadPdfButton) {
+    downloadPdfButton.disabled = !!disabled;
   }
 }
 
@@ -110,6 +124,7 @@ function renderFindingsReport(findings) {
   if (!latestFindingsReport.length) {
     body.innerHTML = '<div class="alert alert-success mb-0"><i class="bi bi-check-circle me-2"></i>No se detectaron hallazgos.</div>';
     setReportButtonState(false);
+    setDownloadPdfButtonState(true);
     return;
   }
 
@@ -133,12 +148,118 @@ function renderFindingsReport(findings) {
   }).join('');
 
   setReportButtonState(false);
+  setDownloadPdfButtonState(false);
 }
 
 function openReportModal() {
   const modal = getReportModal();
   if (!modal) return;
   modal.show();
+}
+
+function getSafePdfName() {
+  const input = byId('txtGitleaksDirectory');
+  const raw = String(input?.value || 'gitleaks').trim();
+  const lastPart = raw.split('/').findLast(function(part) {
+    return !!part;
+  }) || 'gitleaks';
+  const safe = lastPart.replaceAll(/[^a-zA-Z0-9._-]+/g, '_');
+  const stamp = new Date().toISOString().replaceAll(':', '-').replaceAll('.', '-');
+  return `gitleaks-report-${safe}-${stamp}.pdf`;
+}
+
+function addPdfLine(doc, text, x, y, pageWidth, lineHeight) {
+  const maxWidth = pageWidth - (x * 2);
+  const lines = doc.splitTextToSize(String(text || ''), maxWidth);
+  let nextY = y;
+
+  lines.forEach(function (line) {
+    if (nextY > 280) {
+      doc.addPage();
+      nextY = 20;
+    }
+
+    doc.text(line, x, nextY);
+    nextY += lineHeight;
+  });
+
+  return nextY;
+}
+
+function downloadReportPdf() {
+  const findings = Array.isArray(latestFindingsReport) ? latestFindingsReport : [];
+
+  if (!findings.length) {
+    if (typeof Swal !== 'undefined') {
+      Swal.fire({ icon: 'info', title: 'Sin hallazgos', text: 'No hay hallazgos para exportar a PDF.' });
+    }
+    return;
+  }
+
+  const jsPdfLib = globalThis.jspdf;
+  if (!jsPdfLib || typeof jsPdfLib.jsPDF !== 'function') {
+    if (typeof Swal !== 'undefined') {
+      Swal.fire({ icon: 'error', title: 'PDF no disponible', text: 'No se pudo cargar la librería de PDF.' });
+    }
+    return;
+  }
+
+  const doc = new jsPdfLib.jsPDF({
+    orientation: 'p',
+    unit: 'mm',
+    format: 'a4'
+  });
+
+  const pageWidth = doc.internal.pageSize.getWidth();
+  let y = 18;
+
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(14);
+  doc.text('Reporte Gitleaks - Hallazgos', 14, y);
+  y += 8;
+
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(10);
+  y = addPdfLine(doc, `Generado: ${new Date().toLocaleString()}`, 14, y, pageWidth, 5);
+  y = addPdfLine(doc, `Total hallazgos: ${findings.length}`, 14, y, pageWidth, 5);
+  y += 2;
+
+  findings.forEach(function (item, index) {
+    if (y > 260) {
+      doc.addPage();
+      y = 20;
+    }
+
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(11);
+    y = addPdfLine(doc, `#${index + 1} - ${item.ruleId || 'rule'}`, 14, y, pageWidth, 5);
+
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(10);
+    y = addPdfLine(doc, `Archivo: ${item.file || item.hostFile || ''}`, 14, y, pageWidth, 5);
+    y = addPdfLine(doc, `Línea: ${item.line || ''}`, 14, y, pageWidth, 5);
+    y = addPdfLine(doc, `Finding: ${item.finding || ''}`, 14, y, pageWidth, 5);
+    y = addPdfLine(doc, `Secret: ${item.secret || ''}`, 14, y, pageWidth, 5);
+    y = addPdfLine(doc, `Fingerprint: ${item.fingerprint || ''}`, 14, y, pageWidth, 5);
+
+    const git = item.git || null;
+    if (git) {
+      const gitEmail = git.authorMail ? ` <${git.authorMail}>` : '';
+      y = addPdfLine(doc, `Autor: ${git.author || 'N/A'}${gitEmail}`, 14, y, pageWidth, 5);
+      y = addPdfLine(doc, `Fecha: ${git.authorDate ? new Date(git.authorDate).toLocaleString() : 'N/A'}`, 14, y, pageWidth, 5);
+      y = addPdfLine(doc, `Commit: ${git.commitHash || 'N/A'}`, 14, y, pageWidth, 5);
+      y = addPdfLine(doc, `Resumen: ${git.summary || 'N/A'}`, 14, y, pageWidth, 5);
+    } else {
+      y = addPdfLine(doc, 'Git: Sin datos disponibles', 14, y, pageWidth, 5);
+    }
+
+    y += 4;
+    doc.setDrawColor(200, 200, 200);
+    doc.line(14, y, pageWidth - 14, y);
+    y += 6;
+  });
+
+  doc.save(getSafePdfName());
 }
 
 function fitTerminal(shouldNotifyResize = true) {
@@ -342,6 +463,7 @@ async function runGitleaks() {
 
   setRunButtonState(false);
   setReportButtonState(true);
+  setDownloadPdfButtonState(true);
 
   writeLine('\r\nPreparando ejecución de Gitleaks...\r\n');
   connectSocket();

@@ -41,6 +41,10 @@ const assetsToCopy = [
   {
     from: path.join(NODE_MODULES_DIR, '@xterm', 'addon-fit', 'lib'),
     to: path.join(PUBLIC_VENDOR_DIR, 'xterm-addon-fit', 'lib')
+  },
+  {
+    from: path.join(NODE_MODULES_DIR, 'jspdf', 'dist'),
+    to: path.join(PUBLIC_VENDOR_DIR, 'jspdf')
   }
 ];
 
