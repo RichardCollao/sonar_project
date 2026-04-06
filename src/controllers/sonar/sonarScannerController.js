@@ -320,10 +320,7 @@ async function createScannerSession(req, res) {
 function initScannerWebSocket(server) {
   if (scannerWss) return scannerWss;
 
-  scannerWss = new WebSocketServer({
-    server,
-    path: '/ws/scanner'
-  });
+  scannerWss = new WebSocketServer({ noServer: true });
 
   scannerWss.on('connection', async function(ws, request) {
     const host = request.headers.host || 'localhost';

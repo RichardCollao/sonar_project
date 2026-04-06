@@ -3,7 +3,6 @@ document.addEventListener('DOMContentLoaded', function () {
   clearConsoleButton = byId('btnClearGitleaksConsole');
 
   ensureTerminal();
-  connectSocket();
   setRunButtonState(false);
 
   if (runButton) {
@@ -69,6 +68,7 @@ function ensureTerminal() {
     convertEol: true,
     cursorBlink: true,
     allowProposedApi: true,
+    scrollback: 20000,
     fontFamily: 'Menlo, Monaco, Consolas, "Courier New", monospace',
     fontSize: 13,
     theme: {
@@ -130,6 +130,12 @@ function clearConsole() {
   }
 
   terminal.write('$ ');
+}
+
+function markRunButtonAvailable() {
+  const directoryInput = byId('txtGitleaksDirectory');
+  const hasDirectory = !!String(directoryInput?.value || '').trim();
+  setRunButtonState(!hasDirectory);
 }
 
 function getSocketUrl() {
@@ -197,13 +203,14 @@ function connectSocket() {
   });
 
   socket.addEventListener('close', function () {
-    setRunButtonState(false);
+    markRunButtonAvailable();
     pendingRunPayload = null;
+    socket = null;
   });
 
   socket.addEventListener('error', function () {
     writeLine('\r\n[ERROR] No fue posible abrir la conexión WebSocket.\r\n');
-    setRunButtonState(false);
+    markRunButtonAvailable();
   });
 }
 

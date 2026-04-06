@@ -10,6 +10,7 @@ const { resolveWorkspacePath } = require('../../utils/configStore');
 const SESSION_TTL_MS = 60 * 1000;
 const gitleaksSessions = new Map();
 const WORKSPACE_BASE_DIR = path.resolve(getWorkspaceBaseDir());
+const GITLEAKS_WORKSPACE_BASE_DIR = '/workspace';
 
 let gitleaksWss = null;
 
@@ -72,6 +73,22 @@ function assertInsideWorkspace(absolutePath) {
   }
 }
 
+function toPosixPath(value) {
+  return String(value || '').split(path.sep).join('/');
+}
+
+function toContainerWorkspacePath(hostAbsolutePath) {
+  const resolvedHostPath = path.resolve(hostAbsolutePath);
+  const relative = path.relative(WORKSPACE_BASE_DIR, resolvedHostPath);
+  const normalizedRelative = toPosixPath(relative || '').replace(/^\/+/, '');
+
+  if (!normalizedRelative) {
+    return GITLEAKS_WORKSPACE_BASE_DIR;
+  }
+
+  return `${GITLEAKS_WORKSPACE_BASE_DIR}/${normalizedRelative}`;
+}
+
 async function buildGitleaksConfig(payload) {
   const selectedDirectory = String(payload.directory || payload.sourceDirectory || '').trim();
 
@@ -85,19 +102,29 @@ async function buildGitleaksConfig(payload) {
   assertInsideWorkspace(sourceDirectory);
   await ensureDirectoryExists(sourceDirectory, 'Directorio seleccionado');
 
-  const sourcePosix = sourceDirectory.split(path.sep).join('/');
+  const sourceContainerDirectory = toContainerWorkspacePath(sourceDirectory);
+  const gitleaksShellScript = [
+    "if gitleaks dir --help | grep -q -- '--no-git'; then",
+    '  gitleaks dir --no-git "$1" --verbose;',
+    'else',
+    '  gitleaks dir "$1" --verbose;',
+    'fi'
+  ].join(' ');
+
   const args = [
     'exec',
     '-i',
     'gitleaks',
-    'gitleaks',
-    'dir',
-    `--source=${sourcePosix}`,
-    '--verbose'
+    'sh',
+    '-lc',
+    gitleaksShellScript,
+    '--',
+    sourceContainerDirectory
   ];
 
   return {
     sourceDirectory,
+    sourceContainerDirectory,
     displayCommand: buildDisplayCommand(args),
     rawCommand: buildRawCommand(args)
   };
@@ -167,10 +194,7 @@ async function createGitleaksSession(req, res) {
 function initGitleaksWebSocket(server) {
   if (gitleaksWss) return gitleaksWss;
 
-  gitleaksWss = new WebSocketServer({
-    server,
-    path: '/ws/gitleaks'
-  });
+  gitleaksWss = new WebSocketServer({ noServer: true });
 
   gitleaksWss.on('connection', function(ws, request) {
     const host = request.headers.host || 'localhost';

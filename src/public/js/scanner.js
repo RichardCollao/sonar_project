@@ -71,6 +71,7 @@ function ensureTerminal() {
     convertEol: true,
     cursorBlink: true,
     allowProposedApi: true,
+    scrollback: 20000,
     fontFamily: 'Menlo, Monaco, Consolas, "Courier New", monospace',
     fontSize: 13,
     theme: {
