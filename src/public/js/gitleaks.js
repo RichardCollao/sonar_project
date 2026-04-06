@@ -49,6 +49,7 @@ let terminalInputDisposable = null;
 let pendingRunPayload = null;
 let resizeTimeoutId = null;
 let latestFindingsReport = [];
+let latestFilesAnalyzedCount = 0;
 let reportModalInstance = null;
 
 function byId(id) {
@@ -93,12 +94,26 @@ function escapeHtml(value) {
     .replaceAll("'", '&#039;');
 }
 
+function getCommitDisplayValue(git) {
+  const commitHash = String(git?.commitHash || '').trim();
+
+  if (!commitHash) {
+    return 'N/A';
+  }
+
+  if (/^0{40}$/.test(commitHash)) {
+    return 'Sin commit todavía';
+  }
+
+  return commitHash;
+}
+
 function formatGitMeta(git) {
   if (!git) return '<span class="text-muted">Sin datos de Git</span>';
 
   const author = escapeHtml(git.author || '');
   const email = escapeHtml(git.authorMail || '');
-  const commit = escapeHtml(git.commitHash || '');
+  const commit = escapeHtml(getCommitDisplayValue(git));
   const summary = escapeHtml(git.summary || '');
   const date = git.authorDate ? new Date(git.authorDate).toLocaleString() : '';
   const safeDate = escapeHtml(date);
@@ -112,8 +127,27 @@ function formatGitMeta(git) {
   ].join('');
 }
 
-function renderFindingsReport(findings) {
+function buildReportSummaryHtml(totalFindings, totalFilesAnalyzed) {
+  const findingsCount = Number.isFinite(Number(totalFindings)) ? Number(totalFindings) : 0;
+  const filesCount = Number.isFinite(Number(totalFilesAnalyzed)) ? Number(totalFilesAnalyzed) : 0;
+
+  return `
+    <div class="gitleaks-report-summary mt-3">
+      <div class="gitleaks-report-summary-row">
+        <span class="gitleaks-report-summary-label">Hallazgos encontrados</span>
+        <span class="badge gitleaks-report-badge gitleaks-report-badge-findings">${findingsCount}</span>
+      </div>
+      <div class="gitleaks-report-summary-row">
+        <span class="gitleaks-report-summary-label">Archivos analizados</span>
+        <span class="badge gitleaks-report-badge gitleaks-report-badge-files">${filesCount}</span>
+      </div>
+    </div>
+  `;
+}
+
+function renderFindingsReport(findings, totalFilesAnalyzed = 0) {
   latestFindingsReport = Array.isArray(findings) ? findings : [];
+  latestFilesAnalyzedCount = Number.isFinite(Number(totalFilesAnalyzed)) ? Number(totalFilesAnalyzed) : 0;
 
   const body = byId('gitleaksReportBody');
   const count = byId('gitleaksReportCount');
@@ -122,7 +156,10 @@ function renderFindingsReport(findings) {
   count.textContent = `${latestFindingsReport.length} hallazgo${latestFindingsReport.length === 1 ? '' : 's'}`;
 
   if (!latestFindingsReport.length) {
-    body.innerHTML = '<div class="alert alert-success mb-0"><i class="bi bi-check-circle me-2"></i>No se detectaron hallazgos.</div>';
+    body.innerHTML = [
+      '<div class="alert alert-success"><i class="bi bi-check-circle me-2"></i>No se detectaron hallazgos.</div>',
+      buildReportSummaryHtml(0, latestFilesAnalyzedCount)
+    ].join('');
     setReportButtonState(false);
     setDownloadPdfButtonState(true);
     return;
@@ -145,7 +182,7 @@ function renderFindingsReport(findings) {
         </div>
       </div>
     `;
-  }).join('');
+  }).join('') + buildReportSummaryHtml(latestFindingsReport.length, latestFilesAnalyzedCount);
 
   setReportButtonState(false);
   setDownloadPdfButtonState(false);
@@ -222,6 +259,7 @@ function downloadReportPdf() {
   doc.setFontSize(10);
   y = addPdfLine(doc, `Generado: ${new Date().toLocaleString()}`, 14, y, pageWidth, 5);
   y = addPdfLine(doc, `Total hallazgos: ${findings.length}`, 14, y, pageWidth, 5);
+  y = addPdfLine(doc, `Archivos analizados: ${latestFilesAnalyzedCount}`, 14, y, pageWidth, 5);
   y += 2;
 
   findings.forEach(function (item, index) {
@@ -245,9 +283,10 @@ function downloadReportPdf() {
     const git = item.git || null;
     if (git) {
       const gitEmail = git.authorMail ? ` <${git.authorMail}>` : '';
+      const commitLabel = getCommitDisplayValue(git);
       y = addPdfLine(doc, `Autor: ${git.author || 'N/A'}${gitEmail}`, 14, y, pageWidth, 5);
       y = addPdfLine(doc, `Fecha: ${git.authorDate ? new Date(git.authorDate).toLocaleString() : 'N/A'}`, 14, y, pageWidth, 5);
-      y = addPdfLine(doc, `Commit: ${git.commitHash || 'N/A'}`, 14, y, pageWidth, 5);
+      y = addPdfLine(doc, `Commit: ${commitLabel}`, 14, y, pageWidth, 5);
       y = addPdfLine(doc, `Resumen: ${git.summary || 'N/A'}`, 14, y, pageWidth, 5);
     } else {
       y = addPdfLine(doc, 'Git: Sin datos disponibles', 14, y, pageWidth, 5);
@@ -258,6 +297,8 @@ function downloadReportPdf() {
     doc.line(14, y, pageWidth - 14, y);
     y += 6;
   });
+
+  y = addPdfLine(doc, `Archivos analizados: ${latestFilesAnalyzedCount}`, 14, y, pageWidth, 5);
 
   doc.save(getSafePdfName());
 }
@@ -422,7 +463,7 @@ function connectSocket() {
     }
 
     if (message.type === 'report') {
-      renderFindingsReport(message.findings || []);
+      renderFindingsReport(message.findings || [], message.totalFilesAnalyzed || 0);
       openReportModal();
     }
   });

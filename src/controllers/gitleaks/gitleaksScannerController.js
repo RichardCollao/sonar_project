@@ -64,6 +64,37 @@ async function ensureDirectoryExists(targetPath, label) {
   }
 }
 
+async function countAccessibleFilesInDirectory(targetPath) {
+  let entries;
+
+  try {
+    entries = await fs.readdir(targetPath, { withFileTypes: true });
+  } catch (error) {
+    if (error?.code === 'EACCES' || error?.code === 'EPERM' || error?.code === 'ENOENT') {
+      return 0;
+    }
+
+    throw error;
+  }
+
+  let count = 0;
+
+  for (const entry of entries) {
+    const entryPath = path.join(targetPath, entry.name);
+
+    if (entry.isDirectory()) {
+      count += await countAccessibleFilesInDirectory(entryPath);
+      continue;
+    }
+
+    if (entry.isFile()) {
+      count += 1;
+    }
+  }
+
+  return count;
+}
+
 function assertInsideWorkspace(absolutePath) {
   const resolved = path.resolve(absolutePath);
   const isInsideWorkspace = resolved === WORKSPACE_BASE_DIR
@@ -316,6 +347,7 @@ async function buildGitleaksConfig(payload) {
   const sourceDirectory = resolveWorkspacePath(selectedDirectory);
   assertInsideWorkspace(sourceDirectory);
   await ensureDirectoryExists(sourceDirectory, 'Directorio seleccionado');
+  const totalFilesAnalyzed = await countAccessibleFilesInDirectory(sourceDirectory);
 
   const sourceContainerDirectory = toContainerWorkspacePath(sourceDirectory);
   const gitleaksShellScript = [
@@ -340,6 +372,7 @@ async function buildGitleaksConfig(payload) {
   return {
     sourceDirectory,
     sourceContainerDirectory,
+    totalFilesAnalyzed,
     displayCommand: buildDisplayCommand(args),
     rawCommand: buildRawCommand(args)
   };
@@ -486,7 +519,8 @@ function initGitleaksWebSocket(server) {
         sendSocketMessage(ws, {
           type: 'report',
           findings: findingsWithGit,
-          totalFindings: findingsWithGit.length
+          totalFindings: findingsWithGit.length,
+          totalFilesAnalyzed: Number(currentScanConfig?.totalFilesAnalyzed || session?.totalFilesAnalyzed || 0)
         });
       } catch {
       }

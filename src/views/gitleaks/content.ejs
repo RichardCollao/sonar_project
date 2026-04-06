@@ -79,6 +79,60 @@
   input[readonly] {
     user-select: none;
   }
+
+  #gitleaksReportModal code {
+    color: #0b3d91;
+    background-color: #eef4ff;
+    border-radius: 0.25rem;
+    padding: 0.1rem 0.3rem;
+  }
+
+  #gitleaksReportModal .card-header code,
+  #gitleaksReportModal .card-body code {
+    color: #0b3d91;
+  }
+
+  #gitleaksReportModal .gitleaks-report-summary {
+    background: #f8fafc;
+    border: 1px solid #dbe7ff;
+    border-radius: 0.75rem;
+    padding: 1rem;
+  }
+
+  #gitleaksReportModal .gitleaks-report-summary-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+  }
+
+  #gitleaksReportModal .gitleaks-report-summary-row + .gitleaks-report-summary-row {
+    margin-top: 0.75rem;
+    padding-top: 0.75rem;
+    border-top: 1px solid #dbe7ff;
+  }
+
+  #gitleaksReportModal .gitleaks-report-summary-label {
+    font-weight: 600;
+    color: #1e293b;
+  }
+
+  #gitleaksReportModal .gitleaks-report-badge {
+    min-width: 3.5rem;
+    padding: 0.45rem 0.75rem;
+    border-radius: 999px;
+    font-size: 0.9rem;
+  }
+
+  #gitleaksReportModal .gitleaks-report-badge-findings {
+    background-color: #0b3d91;
+    color: #ffffff;
+  }
+
+  #gitleaksReportModal .gitleaks-report-badge-files {
+    background-color: #dbeafe;
+    color: #0b3d91;
+  }
 </style>
 
 <script>
