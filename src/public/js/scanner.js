@@ -35,6 +35,7 @@ let clearConsoleButton = null;
 let terminalInputDisposable = null;
 let pendingRunPayload = null;
 let resizeTimeoutId = null;
+let activeScanProjectName = '';
 
 function byId(id) {
   return document.getElementById(id);
@@ -43,6 +44,19 @@ function byId(id) {
 function setScannerButtonState(disabled) {
   if (scannerButton) {
     scannerButton.disabled = !!disabled;
+  }
+}
+
+function setPdfButtonReadyProject(projectName) {
+  console.log('setPdfButtonReadyProject called with:', projectName);
+  globalThis.sonarPdfReadyProjectName = String(projectName || '').trim();
+  console.log('sonarPdfReadyProjectName set to:', globalThis.sonarPdfReadyProjectName);
+
+  if (typeof globalThis.updateOpenSonarButtonState === 'function') {
+    console.log('Calling updateOpenSonarButtonState');
+    globalThis.updateOpenSonarButtonState();
+  } else {
+    console.error('updateOpenSonarButtonState function not found');
   }
 }
 
@@ -225,6 +239,8 @@ function connectSocket() {
       return;
     }
 
+    console.log('Scanner WebSocket message received:', message);
+
     if (message.type === 'output') {
       writeLine(message.data || '');
       return;
@@ -241,7 +257,20 @@ function connectSocket() {
     }
 
     if (message.type === 'exit') {
+      console.log('Exit message received:', { exitCode: message.exitCode, activeScanProjectName });
       writeLine(`\r\n[Proceso finalizado] código=${message.exitCode}\r\n`);
+
+      setScannerButtonState(false);
+
+      if (Number(message.exitCode) === 0) {
+        console.log('Setting PDF button ready for project:', activeScanProjectName);
+        setPdfButtonReadyProject(activeScanProjectName);
+      } else {
+        console.log('Scanner failed, disabling PDF button');
+        setPdfButtonReadyProject('');
+      }
+
+      activeScanProjectName = '';
     }
   });
 
@@ -278,7 +307,9 @@ async function runScanner() {
     return;
   }
 
-  setScannerButtonState(false);
+  activeScanProjectName = String(payload.projectName || '').trim();
+  setPdfButtonReadyProject('');
+  setScannerButtonState(true);
 
   writeLine('\r\nPreparando sesión de SonarScanner...\r\n');
 
@@ -309,6 +340,7 @@ async function runScanner() {
       });
     }
 
+    activeScanProjectName = '';
     setScannerButtonState(false);
   }
 }

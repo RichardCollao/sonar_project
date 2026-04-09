@@ -20,10 +20,6 @@
       <button type="button" id="btnDiff" class="btn btn-sm btn-outline-secondary ms-2" onclick="openDiffModal()">
         <i class="bi bi-card-list me-2"></i>diff
       </button>
-      <button type="button" id="btnDownloadSonarPdf" class="btn btn-sm btn-outline-secondary ms-2" onclick="downloadSonarPdf()"
-        disabled>
-        <i class="bi bi-file-earmark-pdf me-2"></i>Descargar PDF
-      </button>
     </div>
   </div>
   <hr>
@@ -48,10 +44,14 @@
       <i class="bi bi-terminal"></i> Consola SonarScanner
     </div>
     <div class="col-md-8 text-end">
+      <button type="button" id="btnDownloadSonarPdf" class="btn btn-sm btn-outline-secondary me-2" onclick="downloadSonarPdf()"
+        disabled>
+        <i class="bi bi-file-earmark-pdf me-2"></i>Descargar PDF
+      </button>
       <button type="button" id="btnScanner" class="btn btn-sm btn-outline-secondary">
         <i class="bi bi-terminal me-2"></i>SonarScanner
       </button>
-      <button type="button" id="btnClearScannerConsole" class="btn btn-sm btn-outline-secondary">
+      <button type="button" id="btnClearScannerConsole" class="btn btn-sm btn-outline-secondary ms-2">
         <i class="bi bi-eraser me-1"></i>Limpiar
       </button>
     </div>
@@ -76,32 +76,43 @@
 
   <script>
     document.addEventListener('DOMContentLoaded', function () {
+      globalThis.sonarPdfReadyProjectName = '';
       const select = document.querySelector('#selProject');
       if (select) {
-        select.addEventListener('change', updateOpenSonarButtonState);
+        select.addEventListener('change', globalThis.updateOpenSonarButtonState);
       }
 
       request('/api/sonar/global', 'GET', null, function(response) {
         const data = response?.data || {};
-        window.globalSonarHostUrl = data.sonarHostUrl || '';
+        globalThis.globalSonarHostUrl = data.sonarHostUrl || '';
       });
 
-      updateOpenSonarButtonState();
+      globalThis.updateOpenSonarButtonState();
     });
 
 
-    function updateOpenSonarButtonState() {
+    globalThis.updateOpenSonarButtonState = function updateOpenSonarButtonState() {
       const select = document.querySelector('#selProject');
       const button = document.querySelector('#btnOpenSonar');
       const pdfButton = document.querySelector('#btnDownloadSonarPdf');
-      const enabled = !!(select && select.value);
+      const selectedProject = (select?.value || '').trim();
+      const enabled = !!selectedProject;
+      const pdfEnabled = enabled && selectedProject === String(globalThis.sonarPdfReadyProjectName || '').trim();
+
+      console.log('updateOpenSonarButtonState called:', {
+        selectedProject,
+        sonarPdfReadyProjectName: globalThis.sonarPdfReadyProjectName,
+        enabled,
+        pdfEnabled
+      });
 
       if (!button) return;
 
       button.disabled = !enabled;
 
       if (pdfButton) {
-        pdfButton.disabled = !enabled;
+        console.log('Setting PDF button disabled to:', !pdfEnabled);
+        pdfButton.disabled = !pdfEnabled;
       }
     }
 
@@ -109,7 +120,7 @@
       const select = document.querySelector('#selProject');
 
       const projectKey = (select?.value || '').trim();
-      const hostUrl = String(window.globalSonarHostUrl || '').trim().replace(/\/$/, '');
+      const hostUrl = String(globalThis.globalSonarHostUrl || '').trim().replace(/\/$/, '');
 
       if (!projectKey) {
         if (typeof Swal !== 'undefined') {
@@ -183,7 +194,7 @@
           Swal.fire({ icon: 'error', title: 'Error', text: error?.message || 'No fue posible generar el PDF de Sonar.' });
         }
       } finally {
-        updateOpenSonarButtonState();
+        globalThis.updateOpenSonarButtonState();
       }
     }
 
@@ -197,7 +208,7 @@
 
       select.innerHTML = options.join('\n');
       select.disabled = projects.length === 0;
-      updateOpenSonarButtonState();
+      globalThis.updateOpenSonarButtonState();
     }
 
 

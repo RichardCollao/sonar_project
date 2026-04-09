@@ -61,3 +61,140 @@ body {
   scrollbar-width: thin;
   scrollbar-color: #4a6080 #0f172a;
 }
+
+/* ===== MEJORAS PARA BOTONES EN MODO OSCURO ===== */
+
+/* Botones activos en modo oscuro */
+[data-bs-theme="dark"] .btn-outline-secondary {
+  --bs-btn-color: #e9ecef;
+  --bs-btn-border-color: #6c757d;
+  --bs-btn-hover-color: #212529;
+  --bs-btn-hover-bg: #adb5bd;
+  --bs-btn-hover-border-color: #adb5bd;
+  --bs-btn-focus-shadow-rgb: 108, 117, 125;
+  --bs-btn-active-color: #212529;
+  --bs-btn-active-bg: #adb5bd;
+  --bs-btn-active-border-color: #adb5bd;
+  background-color: rgba(108, 117, 125, 0.1);
+  border-color: #6c757d;
+  color: #e9ecef;
+}
+
+/* Botones activos hover en modo oscuro */
+[data-bs-theme="dark"] .btn-outline-secondary:hover {
+  background-color: #adb5bd;
+  border-color: #adb5bd;
+  color: #212529;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
+  transition: all 0.2s ease-in-out;
+}
+
+/* Botones deshabilitados en modo oscuro - Mejorar contraste */
+[data-bs-theme="dark"] .btn-outline-secondary:disabled,
+[data-bs-theme="dark"] .btn-outline-secondary.disabled {
+  background-color: rgba(52, 58, 64, 0.3) !important;
+  border-color: #495057 !important;
+  color: #868e96 !important;
+  opacity: 0.5 !important;
+  cursor: not-allowed !important;
+  transform: none !important;
+  box-shadow: none !important;
+}
+
+/* Botones de solo lectura en modo oscuro */
+[data-bs-theme="dark"] .btn-outline-secondary[readonly],
+[data-bs-theme="dark"] .btn-outline-secondary.readonly {
+  background-color: rgba(73, 80, 87, 0.2) !important;
+  border-color: #495057 !important;
+  color: #ced4da !important;
+  cursor: default !important;
+  opacity: 0.7 !important;
+}
+
+/* Botones primarios en modo oscuro */
+[data-bs-theme="dark"] .btn-primary {
+  --bs-btn-bg: #0d6efd;
+  --bs-btn-border-color: #0d6efd;
+  --bs-btn-hover-bg: #0b5ed7;
+  --bs-btn-hover-border-color: #0a58ca;
+  --bs-btn-focus-shadow-rgb: 49, 132, 253;
+  --bs-btn-active-bg: #0a58ca;
+  --bs-btn-active-border-color: #0a53be;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+}
+
+[data-bs-theme="dark"] .btn-primary:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 8px rgba(13, 110, 253, 0.3);
+  transition: all 0.2s ease-in-out;
+}
+
+[data-bs-theme="dark"] .btn-primary:disabled,
+[data-bs-theme="dark"] .btn-primary.disabled {
+  background-color: rgba(13, 110, 253, 0.2) !important;
+  border-color: rgba(13, 110, 253, 0.2) !important;
+  color: #868e96 !important;
+  opacity: 0.4 !important;
+  transform: none !important;
+  box-shadow: none !important;
+}
+
+/* Botones de éxito en modo oscuro */
+[data-bs-theme="dark"] .btn-success:disabled,
+[data-bs-theme="dark"] .btn-success.disabled {
+  background-color: rgba(25, 135, 84, 0.2) !important;
+  border-color: rgba(25, 135, 84, 0.2) !important;
+  color: #868e96 !important;
+  opacity: 0.4 !important;
+}
+
+/* Botones de peligro en modo oscuro */
+[data-bs-theme="dark"] .btn-danger:disabled,
+[data-bs-theme="dark"] .btn-danger.disabled {
+  background-color: rgba(220, 53, 69, 0.2) !important;
+  border-color: rgba(220, 53, 69, 0.2) !important;
+  color: #868e96 !important;
+  opacity: 0.4 !important;
+}
+
+/* Botones de información en modo oscuro */
+[data-bs-theme="dark"] .btn-info:disabled,
+[data-bs-theme="dark"] .btn-info.disabled {
+  background-color: rgba(13, 202, 240, 0.2) !important;
+  border-color: rgba(13, 202, 240, 0.2) !important;
+  color: #868e96 !important;
+  opacity: 0.4 !important;
+}
+
+/* Botones de advertencia en modo oscuro */
+[data-bs-theme="dark"] .btn-warning:disabled,
+[data-bs-theme="dark"] .btn-warning.disabled {
+  background-color: rgba(255, 193, 7, 0.2) !important;
+  border-color: rgba(255, 193, 7, 0.2) !important;
+  color: #868e96 !important;
+  opacity: 0.4 !important;
+}
+
+/* Efecto de foco mejorado para todos los botones en modo oscuro */
+[data-bs-theme="dark"] .btn:focus-visible {
+  outline: 2px solid #0d6efd;
+  outline-offset: 2px;
+  box-shadow: 0 0 0 3px rgba(13, 110, 253, 0.25);
+}
+
+/* Transiciones suaves para todos los botones */
+[data-bs-theme="dark"] .btn {
+  transition: all 0.2s ease-in-out;
+}
+
+/* Estilo especial para botones pequeños en modo oscuro */
+[data-bs-theme="dark"] .btn-sm {
+  font-weight: 500;
+}
+
+/* Mejora visual para grupos de botones en modo oscuro */
+[data-bs-theme="dark"] .btn-group .btn:not(:last-child),
+[data-bs-theme="dark"] .btn-group .btn:not(:first-child) {
+  border-left-color: rgba(108, 117, 125, 0.5);
+}

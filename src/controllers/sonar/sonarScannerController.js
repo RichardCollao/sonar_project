@@ -513,6 +513,12 @@ function initScannerWebSocket(server) {
           SHELL: shell
         }
       });
+
+      console.log('Scanner process spawned with PID:', scannerProcess.pid);
+
+      scannerProcess.on('error', function(error) {
+        console.error('Scanner process error:', error);
+      });
     } catch (error) {
       sendSocketMessage(ws, {
         type: 'error',
@@ -537,11 +543,46 @@ function initScannerWebSocket(server) {
     }
 
     scannerProcess.onData(function(chunk) {
+      if (chunk?.includes('EXECUTION SUCCESS')) {
+        console.log('Scanner success message detected:', chunk);
+        
+        // Send exit message manually since onExit might not fire
+        setTimeout(() => {
+          console.log('Manually sending exit message after EXECUTION SUCCESS');
+          sendSocketMessage(ws, {
+            type: 'exit',
+            exitCode: 0,
+            signal: null
+          });
+          
+          if (ws.readyState === 1) {
+            ws.close(1000, 'scan-finished');
+          }
+        }, 1000); // Wait 1 second for any remaining output
+      } else if (chunk?.includes('EXECUTION FAILURE') || chunk?.includes('BUILD FAILED')) {
+        console.log('Scanner failure message detected:', chunk);
+        
+        // Send exit message manually for failure
+        setTimeout(() => {
+          console.log('Manually sending exit message after EXECUTION FAILURE');
+          sendSocketMessage(ws, {
+            type: 'exit',
+            exitCode: 1,
+            signal: null
+          });
+          
+          if (ws.readyState === 1) {
+            ws.close(1000, 'scan-finished');
+          }
+        }, 1000);
+      }
       sendSocketMessage(ws, { type: 'output', data: chunk });
     });
 
     scannerProcess.onExit(async function(event) {
+      console.log('Scanner process onExit called:', event);
       const exitCode = Number.isFinite(event?.exitCode) ? event.exitCode : 1;
+      console.log('Sending exit message with exitCode:', exitCode);
 
       sendSocketMessage(ws, {
         type: 'exit',

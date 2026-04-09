@@ -2,7 +2,8 @@ const { jsPDF } = require('jspdf');
 const { getSonarHostUrl } = require('../../utils/envConfig');
 const { getBundle } = require('../../utils/configStore');
 
-const MAX_ISSUES_IN_REPORT = 120;
+const MAX_ISSUES_IN_REPORT = 1000;
+const SONAR_ISSUES_PAGE_SIZE = 500;
 
 function normalizeHostUrl(hostUrl) {
   return String(hostUrl || '').trim().replace(/\/+$/, '');
@@ -371,6 +372,46 @@ async function fetchSonarData(config) {
     'security_hotspots_reviewed'
   ].join(',');
 
+  async function fetchOpenIssuesWithLimit() {
+    const normalizedLimit = Math.max(1, Number.parseInt(String(MAX_ISSUES_IN_REPORT), 10) || 1);
+    const pageSize = Math.max(1, Math.min(SONAR_ISSUES_PAGE_SIZE, normalizedLimit));
+
+    const collectedIssues = [];
+    let total = 0;
+    let page = 1;
+
+    while (collectedIssues.length < normalizedLimit) {
+      const issuesPage = await getFromSonarApi(config.sonarHostUrl, config.sonarToken, '/api/issues/search', {
+        componentKeys: config.projectKey,
+        resolved: 'false',
+        ps: String(pageSize),
+        p: String(page)
+      });
+
+      const pageIssues = Array.isArray(issuesPage?.issues) ? issuesPage.issues : [];
+      total = Number.parseInt(String(issuesPage?.total || '0'), 10) || 0;
+
+      if (pageIssues.length === 0) {
+        break;
+      }
+
+      const remaining = normalizedLimit - collectedIssues.length;
+      collectedIssues.push(...pageIssues.slice(0, remaining));
+
+      const fetchedAllFromSonar = collectedIssues.length >= total;
+      if (fetchedAllFromSonar || pageIssues.length < pageSize) {
+        break;
+      }
+
+      page += 1;
+    }
+
+    return {
+      total,
+      issues: collectedIssues
+    };
+  }
+
   const [qualityGate, measures, issues] = await Promise.all([
     getFromSonarApi(config.sonarHostUrl, config.sonarToken, '/api/qualitygates/project_status', {
       projectKey: config.projectKey
@@ -379,12 +420,7 @@ async function fetchSonarData(config) {
       component: config.projectKey,
       metricKeys
     }),
-    getFromSonarApi(config.sonarHostUrl, config.sonarToken, '/api/issues/search', {
-      componentKeys: config.projectKey,
-      resolved: 'false',
-      ps: String(MAX_ISSUES_IN_REPORT),
-      p: '1'
-    })
+    fetchOpenIssuesWithLimit()
   ]);
 
   return { qualityGate, measures, issues };
@@ -432,6 +468,10 @@ function buildPdfBuffer(payload) {
     })
     : [];
   const issueTotal = Number(payload.issues?.total || 0);
+  const displayedIssueCount = issues.length;
+  const issuesSectionTitle = issueTotal > displayedIssueCount
+    ? `Issues (mostrando ${displayedIssueCount} de ${issueTotal})`
+    : 'Issues';
   const qgStatus = String(payload.qualityGate?.projectStatus?.status || 'UNKNOWN');
   const analysisResultStyle = getAnalysisResultStyle(qgStatus);
 
@@ -475,6 +515,7 @@ function buildPdfBuffer(payload) {
   doc.setFont('helvetica', 'normal');
   doc.setFontSize(10);
   const qualityGateStyle = getQualityGateStyle(qgStatus);
+  const qualityGateBottomGap = 2.5;
   drawSectionChip(
     doc,
     `Quality Gate: ${qualityGateStyle.label}`,
@@ -484,7 +525,7 @@ function buildPdfBuffer(payload) {
     6,
     qualityGateStyle
   );
-  y += 6;
+  y += 6 + qualityGateBottomGap;
   y = addPdfLine(doc, `Bugs: ${getMeasureValue(measureMap, 'bugs', '0')}`, 14, y, pageWidth, 5);
   y = addPdfLine(doc, `Vulnerabilities: ${getMeasureValue(measureMap, 'vulnerabilities', '0')}`, 14, y, pageWidth, 5);
   y = addPdfLine(doc, `Security Hotspots: ${getMeasureValue(measureMap, 'security_hotspots', '0')}`, 14, y, pageWidth, 5);
@@ -501,7 +542,7 @@ function buildPdfBuffer(payload) {
 
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(12);
-  y = addPdfLine(doc, `Issues (hasta ${MAX_ISSUES_IN_REPORT})`, 14, y, pageWidth, 6);
+  y = addPdfLine(doc, issuesSectionTitle, 14, y, pageWidth, 6);
 
   doc.setFont('helvetica', 'normal');
   doc.setFontSize(10);
@@ -510,11 +551,6 @@ function buildPdfBuffer(payload) {
     y = addPdfLine(doc, 'No se encontraron issues abiertas.', 14, y, pageWidth, 5);
   } else {
     issues.forEach(function(item, index) {
-      if (y > 260) {
-        doc.addPage();
-        y = 20;
-      }
-
       const severity = String(item?.severity || 'N/A');
       const type = String(item?.type || 'ISSUE');
       const message = String(item?.message || '').trim() || 'Sin descripción';
@@ -523,37 +559,123 @@ function buildPdfBuffer(payload) {
       const severityStyle = getSeverityStyle(severity);
       const typeStyle = getIssueTypeStyle(type);
 
-      drawSectionChip(
-        doc,
-        `${index + 1}. ${severityStyle.label}`,
-        14,
-        y - 1.8,
-        42,
-        6,
-        severityStyle
-      );
+      const cardX = 14;
+      const cardWidth = pageWidth - 28;
+      const cardPaddingX = 4;
+      const cardPaddingTop = 4;
+      const cardPaddingBottom = 3;
+      const cardGap = 2.5;
 
-      drawSectionChip(
-        doc,
-        typeStyle.label,
-        58,
-        y - 1.8,
-        40,
-        6,
-        typeStyle
-      );
+      const chipStartX = cardX + cardPaddingX;
+      const chipHeight = 6;
+      const chipGap = 2;
+      const chipRowGap = 1.8;
+      const chipSidePadding = 6;
+      const chipMinWidth = 24;
+      const chipMaxRight = cardX + cardWidth - cardPaddingX;
 
-      doc.setFont('helvetica', 'bold');
-      y = addPdfLine(doc, `Severidad: ${severityStyle.label}`, 102, y, pageWidth, 5);
+      const paragraphTopGap = 5.5;
+      const issueDividerTopGap = 2.5;
+      const issueDividerBottomGap = 5.5;
+      const textLineHeight = 5;
+      const textX = cardX + cardPaddingX;
+      const textMaxWidth = pageWidth - (textX * 2);
+
+      const chips = [
+        { text: `${index + 1}. ${severityStyle.label}`, style: severityStyle },
+        { text: typeStyle.label, style: typeStyle }
+      ].map(function(chip) {
+        const label = String(chip.text || '').trim();
+        const width = Math.max(chipMinWidth, doc.getTextWidth(label) + chipSidePadding);
+        return {
+          text: label,
+          style: chip.style,
+          width
+        };
+      });
+
+      let measureX = chipStartX;
+      let chipRows = 1;
+      chips.forEach(function(chip) {
+        if (measureX + chip.width > chipMaxRight) {
+          chipRows += 1;
+          measureX = chipStartX;
+        }
+
+        measureX += chip.width + chipGap;
+      });
+
+      const chipBlockHeight = (chipRows * chipHeight) + ((chipRows - 1) * chipRowGap);
+
+      const messageLines = doc.splitTextToSize(`Mensaje: ${message}`, textMaxWidth);
+      const fileLines = doc.splitTextToSize(`Archivo: ${filePath || 'N/A'}`, textMaxWidth);
+      const lineLines = doc.splitTextToSize(`Línea: ${line}`, textMaxWidth);
+      const textBlockLines = messageLines.length + fileLines.length + lineLines.length;
+      const textBlockHeight = textBlockLines * textLineHeight;
+
+      const cardHeight = cardPaddingTop
+        + chipBlockHeight
+        + paragraphTopGap
+        + textBlockHeight
+        + cardPaddingBottom;
+
+      if (y + cardHeight > 280) {
+        doc.addPage();
+        y = 20;
+      }
+
+      doc.setFillColor(248, 250, 252);
+      const cardY = y;
+      doc.roundedRect(cardX, cardY, cardWidth, cardHeight, 2, 2, 'F');
+      doc.setDrawColor(226, 232, 240);
+      doc.roundedRect(cardX, cardY, cardWidth, cardHeight, 2, 2, 'S');
+
+      let chipX = chipStartX;
+      let chipY = cardY + cardPaddingTop;
+
+      function drawIssueChip(text, style) {
+        const label = String(text || '').trim();
+        const computedWidth = Math.max(chipMinWidth, doc.getTextWidth(label) + chipSidePadding);
+
+        if (chipX + computedWidth > chipMaxRight) {
+          chipX = chipStartX;
+          chipY += chipHeight + chipRowGap;
+        }
+
+        drawSectionChip(
+          doc,
+          label,
+          chipX,
+          chipY,
+          computedWidth,
+          chipHeight,
+          style
+        );
+
+        chipX += computedWidth + chipGap;
+      }
+
+      chips.forEach(function(chip) {
+        drawIssueChip(chip.text, chip.style);
+      });
+
+      y = chipY + chipHeight + paragraphTopGap;
 
       doc.setFont('helvetica', 'normal');
-      y = addPdfLine(doc, `Mensaje: ${message}`, 14, y, pageWidth, 5);
-      y = addPdfLine(doc, `Archivo: ${filePath || 'N/A'}`, 14, y, pageWidth, 5);
-      y = addPdfLine(doc, `Línea: ${line}`, 14, y, pageWidth, 5);
+      y = addPdfLine(doc, `Mensaje: ${message}`, textX, y, pageWidth, textLineHeight);
+      y = addPdfLine(doc, `Archivo: ${filePath || 'N/A'}`, textX, y, pageWidth, textLineHeight);
+      y = addPdfLine(doc, `Línea: ${line}`, textX, y, pageWidth, textLineHeight);
 
-      doc.setDrawColor(226, 232, 240);
-      doc.line(14, y + 0.8, pageWidth - 14, y + 0.8);
-      y += 2;
+      y = cardY + cardHeight;
+
+      if (index < issues.length - 1) {
+        y += issueDividerTopGap;
+        doc.setDrawColor(226, 232, 240);
+        doc.line(cardX, y, cardX + cardWidth, y);
+        y += issueDividerBottomGap;
+      } else {
+        y += cardGap;
+      }
     });
   }
 
