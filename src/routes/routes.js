@@ -1,6 +1,7 @@
 const express = require('express');
 const sonarController = require('../controllers/sonar/sonarController');
 const sonarConfigController = require('../controllers/sonar/sonarConfigController');
+const sonarReportController = require('../controllers/sonar/sonarReportController');
 const appConfigController = require('../controllers/app/appConfigController');
 const gitController = require('../controllers/gitController');
 const sonarScannerController = require('../controllers/sonar/sonarScannerController');
@@ -17,6 +18,7 @@ router.get('/sonar_config', sonarConfigController.renderSonarConfig);
 router.get('/app_config', appConfigController.renderAppConfig);
 
 router.get('/api/projects', sonarController.getProjects);
+router.get('/api/sonar/report/pdf', sonarReportController.downloadSonarReportPdf);
 router.get('/api/sonar/global', sonarConfigController.getGlobalConfig);
 router.post('/api/sonar/global', sonarConfigController.saveGlobalConfig);
 router.post('/api/theme', sonarConfigController.saveTheme);

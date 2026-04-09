@@ -20,6 +20,10 @@
       <button type="button" id="btnDiff" class="btn btn-sm btn-outline-secondary ms-2" onclick="openDiffModal()">
         <i class="bi bi-card-list me-2"></i>diff
       </button>
+      <button type="button" id="btnDownloadSonarPdf" class="btn btn-sm btn-outline-secondary ms-2" onclick="downloadSonarPdf()"
+        disabled>
+        <i class="bi bi-file-earmark-pdf me-2"></i>Descargar PDF
+      </button>
     </div>
   </div>
   <hr>
@@ -89,9 +93,16 @@
     function updateOpenSonarButtonState() {
       const select = document.querySelector('#selProject');
       const button = document.querySelector('#btnOpenSonar');
+      const pdfButton = document.querySelector('#btnDownloadSonarPdf');
+      const enabled = !!(select && select.value);
+
       if (!button) return;
 
-      button.disabled = !(select && select.value);
+      button.disabled = !enabled;
+
+      if (pdfButton) {
+        pdfButton.disabled = !enabled;
+      }
     }
 
     function openSonarProject() {
@@ -116,6 +127,64 @@
 
       const sonarUrl = `${hostUrl}/dashboard?id=${encodeURIComponent(projectKey)}`;
       window.open(sonarUrl, '_blank', 'noopener,noreferrer');
+    }
+
+    async function downloadSonarPdf() {
+      const select = document.querySelector('#selProject');
+      const pdfButton = document.querySelector('#btnDownloadSonarPdf');
+      const projectKey = (select?.value || '').trim();
+
+      if (!projectKey) {
+        if (typeof Swal !== 'undefined') {
+          Swal.fire({ icon: 'warning', title: 'Nombre de proyecto requerido', text: 'Selecciona un nombre de proyecto.' });
+        }
+        return;
+      }
+
+      if (pdfButton) {
+        pdfButton.disabled = true;
+      }
+
+      try {
+        const response = await fetch(`/api/sonar/report/pdf?projectName=${encodeURIComponent(projectKey)}`, {
+          method: 'GET',
+          credentials: 'include'
+        });
+
+        if (!response.ok) {
+          let message = 'No fue posible generar el PDF de Sonar.';
+
+          try {
+            const data = await response.json();
+            message = data?.message || message;
+          } catch {
+          }
+
+          throw new Error(message);
+        }
+
+        const blob = await response.blob();
+        const contentDisposition = String(response.headers.get('content-disposition') || '');
+        const fileNameMatch = /filename="?([^";]+)"?/i.exec(contentDisposition);
+        const fileName = (fileNameMatch && fileNameMatch[1])
+          ? fileNameMatch[1]
+          : `sonar-report-${projectKey}.pdf`;
+
+        const blobUrl = window.URL.createObjectURL(blob);
+        const anchor = document.createElement('a');
+        anchor.href = blobUrl;
+        anchor.download = fileName;
+        document.body.appendChild(anchor);
+        anchor.click();
+        anchor.remove();
+        window.URL.revokeObjectURL(blobUrl);
+      } catch (error) {
+        if (typeof Swal !== 'undefined') {
+          Swal.fire({ icon: 'error', title: 'Error', text: error?.message || 'No fue posible generar el PDF de Sonar.' });
+        }
+      } finally {
+        updateOpenSonarButtonState();
+      }
     }
 
     function poblarSelect(arr) {
