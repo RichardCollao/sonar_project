@@ -66,11 +66,7 @@ function setPdfButtonReadyProject(projectName) {
   const selectedProject = byId('selGitleaksProject')?.value || '';
   gitleaksPdfReadyProject = String(projectName || '').trim();
   
-  console.log('setPdfButtonReadyProject called:', { projectName, selectedProject, gitleaksPdfReadyProject });
-  
   const pdfEnabled = !!selectedProject && selectedProject === gitleaksPdfReadyProject;
-  console.log('PDF button enabled:', pdfEnabled);
-  
   setDownloadPdfButtonState(!pdfEnabled);
 }
 

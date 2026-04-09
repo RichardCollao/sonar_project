@@ -15,6 +15,12 @@ app.set('views', path.join(__dirname, 'src/views'));
 app.use(express.json());
 app.use(express.static(path.join(__dirname, 'src/public')));
 app.use('/vendor', express.static(path.join(__dirname, 'node_modules')));
+
+// Favicon específico
+app.get('/favicon.ico', (req, res) => {
+    res.sendFile(path.join(__dirname, 'src/public/favicon.ico'));
+});
+
 app.use('/', homeRoutes);
 
 const server = http.createServer(app);

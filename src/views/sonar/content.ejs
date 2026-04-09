@@ -95,24 +95,21 @@
       const select = document.querySelector('#selProject');
       const button = document.querySelector('#btnOpenSonar');
       const pdfButton = document.querySelector('#btnDownloadSonarPdf');
+      const scannerButton = document.querySelector('#btnScanner');
       const selectedProject = (select?.value || '').trim();
       const enabled = !!selectedProject;
       const pdfEnabled = enabled && selectedProject === String(globalThis.sonarPdfReadyProjectName || '').trim();
-
-      console.log('updateOpenSonarButtonState called:', {
-        selectedProject,
-        sonarPdfReadyProjectName: globalThis.sonarPdfReadyProjectName,
-        enabled,
-        pdfEnabled
-      });
 
       if (!button) return;
 
       button.disabled = !enabled;
 
       if (pdfButton) {
-        console.log('Setting PDF button disabled to:', !pdfEnabled);
         pdfButton.disabled = !pdfEnabled;
+      }
+
+      if (scannerButton) {
+        scannerButton.disabled = !enabled;
       }
     }
 

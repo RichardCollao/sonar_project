@@ -4,7 +4,6 @@ document.addEventListener('DOMContentLoaded', function () {
   clearConsoleButton = byId('btnClearScannerConsole');
 
   ensureTerminal();
-  connectSocket();
   setScannerButtonState(false);
 
   if (scannerButton) {
@@ -48,15 +47,10 @@ function setScannerButtonState(disabled) {
 }
 
 function setPdfButtonReadyProject(projectName) {
-  console.log('setPdfButtonReadyProject called with:', projectName);
   globalThis.sonarPdfReadyProjectName = String(projectName || '').trim();
-  console.log('sonarPdfReadyProjectName set to:', globalThis.sonarPdfReadyProjectName);
 
   if (typeof globalThis.updateOpenSonarButtonState === 'function') {
-    console.log('Calling updateOpenSonarButtonState');
     globalThis.updateOpenSonarButtonState();
-  } else {
-    console.error('updateOpenSonarButtonState function not found');
   }
 }
 
@@ -80,7 +74,6 @@ function ensureTerminal() {
     terminalContainer.innerHTML = '<div class="text-danger p-2">xterm.js no está disponible.</div>';
     return;
   }
-
   terminal = new Terminal({
     convertEol: true,
     cursorBlink: true,
@@ -141,16 +134,7 @@ function clearConsole() {
 
   terminal.clear();
   terminal.focus();
-
-  if (socket?.readyState === 1) {
-    socket.send(JSON.stringify({
-      type: 'input',
-      data: '\f'
-    }));
-    return;
-  }
-
-  terminal.write('$ ');
+  terminal.writeln('Consola lista. Presiona SonarScanner para iniciar.');
 }
 
 function getSocketUrl() {
@@ -170,42 +154,7 @@ function sendRunScanner(payload) {
   }));
 }
 
-function sendRunPreparedSession(sessionId) {
-  const payload = { sessionId };
 
-  if (socket?.readyState !== 1) {
-    pendingRunPayload = payload;
-    return;
-  }
-
-  socket.send(JSON.stringify({
-    type: 'runScanner',
-    payload
-  }));
-}
-
-async function prepareScannerSession(payload) {
-  const response = await fetch('/api/scanner/session', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json'
-    },
-    body: JSON.stringify(payload)
-  });
-
-  let data = {};
-  try {
-    data = await response.json();
-  } catch {
-    data = {};
-  }
-
-  if (!response.ok || !data?.success) {
-    throw new Error(data?.message || 'No fue posible preparar la sesión de SonarScanner.');
-  }
-
-  return data.data || {};
-}
 
 function connectSocket() {
   if (socket?.readyState === 0 || socket?.readyState === 1) return;
@@ -220,12 +169,7 @@ function connectSocket() {
     if (pendingRunPayload) {
       const payload = pendingRunPayload;
       pendingRunPayload = null;
-
-      if (payload?.sessionId) {
-        sendRunPreparedSession(payload.sessionId);
-      } else {
-        sendRunScanner(payload);
-      }
+      sendRunScanner(payload);
     }
   });
 
@@ -238,8 +182,6 @@ function connectSocket() {
       writeLine(String(event.data || ''));
       return;
     }
-
-    console.log('Scanner WebSocket message received:', message);
 
     if (message.type === 'output') {
       writeLine(message.data || '');
@@ -257,13 +199,11 @@ function connectSocket() {
     }
 
     if (message.type === 'exit') {
-      console.log('Exit message received:', { exitCode: message.exitCode, activeScanProjectName });
       writeLine(`\r\n[Proceso finalizado] código=${message.exitCode}\r\n`);
 
       setScannerButtonState(false);
 
       // Habilitar botón PDF cuando termina la ejecución (independiente del código)
-      console.log('Setting PDF button ready for project:', activeScanProjectName);
       setPdfButtonReadyProject(activeScanProjectName);
 
       activeScanProjectName = '';
@@ -271,13 +211,18 @@ function connectSocket() {
   });
 
   socket.addEventListener('close', function () {
-    setScannerButtonState(false);
+    const projectSelect = byId('selProject');
+    const hasProject = !!String(projectSelect?.value || '').trim();
+    setScannerButtonState(!hasProject);
     pendingRunPayload = null;
+    socket = null;
   });
 
   socket.addEventListener('error', function () {
     writeLine('\r\n[ERROR] No fue posible abrir la conexión WebSocket.\r\n');
-    setScannerButtonState(false);
+    const projectSelect = byId('selProject');
+    const hasProject = !!String(projectSelect?.value || '').trim();
+    setScannerButtonState(!hasProject);
   });
 }
 
@@ -307,36 +252,7 @@ async function runScanner() {
   setPdfButtonReadyProject('');
   setScannerButtonState(true);
 
-  writeLine('\r\nPreparando sesión de SonarScanner...\r\n');
-
-  try {
-    const session = await prepareScannerSession(payload);
-
-    if (session?.sonarProjectCreated && typeof Swal !== 'undefined' && typeof Swal.fire === 'function') {
-      await Swal.fire({
-        icon: 'info',
-        title: 'Proyecto creado en SonarQube',
-        text: `Se creó en SonarQube el proyecto con nombre ${session.projectName || payload.projectName}. Pulsa Aceptar para continuar con el análisis.`,
-        confirmButtonText: 'Aceptar',
-        allowOutsideClick: false,
-        allowEscapeKey: false
-      });
-    }
-
-    connectSocket();
-    sendRunPreparedSession(session.sessionId);
-  } catch (error) {
-    writeLine(`\r\n[ERROR] ${error?.message || 'No fue posible preparar SonarScanner.'}\r\n`);
-
-    if (typeof Swal !== 'undefined' && typeof Swal.fire === 'function') {
-      Swal.fire({
-        icon: 'error',
-        title: 'Error',
-        text: error?.message || 'No fue posible preparar SonarScanner.'
-      });
-    }
-
-    activeScanProjectName = '';
-    setScannerButtonState(false);
-  }
+  writeLine('\r\nPreparando ejecución de SonarScanner...\r\n');
+  connectSocket();
+  sendRunScanner(payload);
 }
