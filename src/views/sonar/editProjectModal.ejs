@@ -1,109 +1,34 @@
 <div class="modal fade" id="editProjectModal" tabindex="-1" aria-labelledby="editProjectModalLabel" aria-hidden="true">
-    <div class="modal-dialog modal-dialog-centered">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title" id="editProjectModalLabel">Editar proyecto Sonar</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="editProjectModalLabel">Editar proyecto</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body">
+        <form id="frmEditProject" class="row g-3">
+          <input type="hidden" id="editProjectCurrentName">
+          <div class="col-12">
+            <label for="editProjectName" class="form-label">nombre proyecto</label>
+            <input type="text" class="form-control form-control-sm" id="editProjectName" required
+              onchange="trimProjectInput(this)" onblur="trimProjectInput(this)">
+          </div>
+          <div class="col-12">
+            <label for="editProjectBaseDir" class="form-label">directorio proyecto</label>
+            <div class="input-group input-group-sm mb-3">
+              <span class="input-group-text"><%= workspaceBaseDir %>/</span>
+              <input type="text" class="form-control form-control-sm" id="editProjectBaseDir" required
+                onchange="trimProjectInput(this)" onblur="trimProjectInput(this)">
+              <button type="button" class="btn btn-outline-secondary" onclick="openGlobalFileExplorerModal('editProjectBaseDir')"><i
+                  class="bi bi-folder2-open"></i></button>
             </div>
-            <div class="modal-body">
-                <form id="frmEditProject" class="row g-3">
-                    <input type="hidden" id="editProjectCurrentKey">
-                    <div class="col-12">
-                        <label for="editSonarProjectKey" class="form-label">sonarProjectKey</label>
-                        <input type="text" class="form-control form-control-sm" id="editSonarProjectKey" required
-                            onchange="trimProjectInput(this)" onblur="trimProjectInput(this)">
-                    </div>
-                    <div class="col-12">
-                        <label for="editSonarProjectBaseDir" class="form-label">sonarProjectBaseDir</label>
-                        <div class="input-group input-group-sm mb-3">
-                            <span class="input-group-text"><%= workspaceBaseDir %>/</span>
-                            <input type="text" class="form-control form-control-sm" id="editSonarProjectBaseDir"
-                                required onchange="trimProjectInput(this)" onblur="trimProjectInput(this)">
-                            <button type="button" class="btn btn-outline-secondary"
-                                onclick="openGlobalFileExplorerModal('editSonarProjectBaseDir')"><i
-                                    class="bi bi-folder2-open"></i></button>
-                        </div>
-                    </div>
-                </form>
-            </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cerrar</button>
-                <button type="button" id="btnUpdateProject" class="btn btn-primary"
-                    onclick="saveEditedProject()">Guardar</button>
-            </div>
-        </div>
+          </div>
+        </form>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cerrar</button>
+        <button type="button" id="btnUpdateProject" class="btn btn-primary" onclick="saveEditedProject()">Guardar</button>
+      </div>
     </div>
+  </div>
 </div>
-
-<script>
-    function openEditProjectModal(projectKey, projectBaseDir) {
-        const modalElement = document.getElementById('editProjectModal');
-        if (!modalElement) return;
-
-        const currentKeyInput = document.getElementById('editProjectCurrentKey');
-        const projectKeyInput = document.getElementById('editSonarProjectKey');
-        const projectBaseDirInput = document.getElementById('editSonarProjectBaseDir');
-
-        if (currentKeyInput) currentKeyInput.value = projectKey || '';
-        if (projectKeyInput) projectKeyInput.value = projectKey || '';
-        if (projectBaseDirInput) projectBaseDirInput.value = projectBaseDir || '';
-
-        bootstrap.Modal.getOrCreateInstance(modalElement).show();
-    }
-
-    function saveEditedProject() {
-        const editProjectForm = document.getElementById('frmEditProject');
-        if (!editProjectForm?.reportValidity()) return;
-
-        const currentProjectKey = document.getElementById('editProjectCurrentKey')?.value?.trim() || '';
-        const projectKeyValue = document.getElementById('editSonarProjectKey')?.value?.trim() || '';
-        const projectBaseDirValue = document.getElementById('editSonarProjectBaseDir')?.value?.trim() || '';
-
-        if (!currentProjectKey || !projectKeyValue || !projectBaseDirValue) {
-            Swal.fire({
-                icon: 'warning',
-                title: 'Campos obligatorios',
-                text: 'Los campos sonarProjectKey y sonarProjectBaseDir son obligatorios.'
-            });
-            return;
-        }
-
-        const isValidProjectKey = (typeof isValidSonarProjectKey === 'function')
-            ? isValidSonarProjectKey(projectKeyValue)
-            : (/^[A-Za-z0-9._:-]+$/.test(projectKeyValue) && /[^0-9]/.test(projectKeyValue) && projectKeyValue.length <= 400);
-
-        if (!isValidProjectKey) {
-            const message = (typeof sonarProjectKeyValidationMessage === 'function')
-                ? sonarProjectKeyValidationMessage()
-                : 'sonarProjectKey inválido. Use solo letras, números, punto (.), guion (-), guion bajo (_) y dos puntos (:), con al menos un carácter no numérico.';
-
-            Swal.fire({
-                icon: 'warning',
-                title: 'sonarProjectKey inválido',
-                text: message
-            });
-            return;
-        }
-
-        const payload = {
-            sonarProjectKey: projectKeyValue,
-            sonarProjectBaseDir: projectBaseDirValue
-        };
-
-        request(`/api/projects/${encodeURIComponent(currentProjectKey)}`, 'PUT', payload, function (response) {
-            const modalElement = document.getElementById('editProjectModal');
-            if (modalElement && window.bootstrap?.Modal) {
-                window.bootstrap.Modal.getOrCreateInstance(modalElement).hide();
-            }
-
-            if (typeof loadProjects === 'function') {
-                setTimeout(loadProjects, 100);
-            }
-
-            if (typeof iziToastSuccess === 'function') {
-                const successMessage = response?.message || 'Proyecto actualizado correctamente.';
-                iziToastSuccess(successMessage);
-            }
-        });
-    }
-</script>

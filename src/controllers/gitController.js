@@ -54,11 +54,11 @@ async function getProjectData(projectKey) {
   const projects = Array.isArray(bundle?.projects) ? bundle.projects : [];
 
   const project = projects.find(function(item) {
-    return String(item?.sonarProjectKey || '').trim() === String(projectKey || '').trim();
+    return String(item?.projectName || '').trim() === String(projectKey || '').trim();
   });
 
   if (!project) {
-    const error = new Error('Proyecto no encontrado.');
+    const error = new Error('Nombre de proyecto no encontrado.');
     error.code = 'ENOENT';
     throw error;
   }
@@ -68,21 +68,21 @@ async function getProjectData(projectKey) {
 
 async function getProjectBranches(req, res) {
   try {
-    const projectKey = req.params.projectKey;
+    const projectKey = req.params.projectName;
     if (!isValidProjectKeyForFileName(projectKey)) {
-      return res.status(400).json({ success: false, message: 'Proyecto inválido.' });
+      return res.status(400).json({ success: false, message: 'Nombre de proyecto inválido.' });
     }
 
     let projectData;
     try {
       projectData = await getProjectData(projectKey);
     } catch {
-      return res.status(404).json({ success: false, message: 'Proyecto no encontrado.' });
+      return res.status(404).json({ success: false, message: 'Nombre de proyecto no encontrado.' });
     }
 
-    const baseDir = resolveWorkspacePath(projectData.sonarProjectBaseDir);
+    const baseDir = resolveWorkspacePath(projectData.projectBaseDir);
     if (!baseDir) {
-      return res.status(400).json({ success: false, message: 'El proyecto no tiene directorio base configurado.' });
+      return res.status(400).json({ success: false, message: 'El nombre de proyecto no tiene directorio base configurado.' });
     }
 
     try {
@@ -144,12 +144,12 @@ async function getProjectBranches(req, res) {
 
 async function getProjectDiffFiles(req, res) {
   try {
-    const projectKey = req.params.projectKey;
+    const projectKey = req.params.projectName;
     const base = String(req.query.base || '').trim();
     const compare = String(req.query.compare || '').trim();
 
     if (!isValidProjectKeyForFileName(projectKey)) {
-      return res.status(400).json({ success: false, message: 'Proyecto inválido.' });
+      return res.status(400).json({ success: false, message: 'Nombre de proyecto inválido.' });
     }
 
     if (!isValidGitRef(base) || !isValidGitRef(compare)) {
@@ -160,12 +160,12 @@ async function getProjectDiffFiles(req, res) {
     try {
       projectData = await getProjectData(projectKey);
     } catch {
-      return res.status(404).json({ success: false, message: 'Proyecto no encontrado.' });
+      return res.status(404).json({ success: false, message: 'Nombre de proyecto no encontrado.' });
     }
 
-    const baseDir = resolveWorkspacePath(projectData.sonarProjectBaseDir);
+    const baseDir = resolveWorkspacePath(projectData.projectBaseDir);
     if (!baseDir) {
-      return res.status(400).json({ success: false, message: 'El proyecto no tiene directorio base configurado.' });
+      return res.status(400).json({ success: false, message: 'El nombre de proyecto no tiene directorio base configurado.' });
     }
 
     try {

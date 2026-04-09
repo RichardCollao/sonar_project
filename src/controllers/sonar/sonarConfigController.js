@@ -2,8 +2,7 @@ const fs = require('node:fs/promises');
 const {
   getSonarHostUrl,
   getSonarWorkingDirectory,
-  getSonarConfigPath,
-  getWorkspaceBaseDir
+  getSonarConfigPath
 } = require('../../utils/envConfig');
 const {
   resolveWorkspacePath,
@@ -18,7 +17,7 @@ const REQUIRED_GLOBAL_FIELDS = [
 ];
 
 function renderSonarConfig(req, res) {
-  res.render('sonar/sonar_config', { workspaceBaseDir: getWorkspaceBaseDir() });
+  res.render('sonar/sonar_config');
 }
 
 async function getGlobalConfig(req, res) {
@@ -27,15 +26,13 @@ async function getGlobalConfig(req, res) {
     const sonarWorkingDirectory = getSonarWorkingDirectory();
     const sonarConfigPath = getSonarConfigPath();
     const { bundle } = await getBundle();
-    const { bundle: appBundle } = await getAppBundle();
     const global = bundle?.global || {};
 
     const data = {
       sonarToken: String(global.sonarToken || '').trim(),
       sonarHostUrl,
       sonarWorkingDirectory,
-      sonarConfigPath,
-      theme: String(appBundle.theme || 'light')
+      sonarConfigPath
     };
 
     return res.json({ success: true, data });

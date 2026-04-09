@@ -1,115 +1,33 @@
 <div class="modal fade" id="newProjectModal" tabindex="-1" aria-labelledby="newProjectModalLabel" aria-hidden="true">
-    <div class="modal-dialog modal-dialog-centered">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title" id="newProjectModalLabel">Nuevo proyecto Sonar</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="newProjectModalLabel">Nuevo proyecto</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body">
+        <form id="frmNewProject" class="row g-3">
+          <div class="col-12">
+            <label for="projectName" class="form-label">nombre proyecto</label>
+            <input type="text" class="form-control form-control-sm" id="projectName" required
+              onchange="trimProjectInput(this)" onblur="trimProjectInput(this)">
+          </div>
+          <div class="col-12">
+            <label for="projectBaseDir" class="form-label">directorio proyecto</label>
+            <div class="input-group input-group-sm mb-3">
+              <span class="input-group-text"><%= workspaceBaseDir %>/</span>
+              <input type="text" class="form-control form-control-sm" id="projectBaseDir" required
+                onchange="trimProjectInput(this)" onblur="trimProjectInput(this)">
+              <button type="button" class="btn btn-outline-secondary" onclick="openGlobalFileExplorerModal('projectBaseDir')"><i
+                  class="bi bi-folder2-open"></i></button>
             </div>
-            <div class="modal-body">
-                <form id="frmNewProject" class="row g-3">
-                    <div class="col-12">
-                        <label for="sonarProjectKey" class="form-label">sonarProjectKey</label>
-                        <input type="text" class="form-control form-control-sm" id="sonarProjectKey" required
-                            onchange="trimProjectInput(this)" onblur="trimProjectInput(this)">
-                    </div>
-                    <div class="col-12">
-                        <label for="sonarProjectBaseDir" class="form-label">sonarProjectBaseDir</label>
-                        <div class="input-group input-group-sm mb-3">
-                            <span class="input-group-text"><%= workspaceBaseDir %>/</span>
-                            <input type="text" class="form-control form-control-sm" id="sonarProjectBaseDir" required
-                                onchange="trimProjectInput(this)" onblur="trimProjectInput(this)">
-                            <button type="button" class="btn btn-outline-secondary"
-                                onclick="openGlobalFileExplorerModal('sonarProjectBaseDir')"><i
-                                    class="bi bi-folder2-open"></i></button>
-                        </div>
-                    </div>
-                </form>
-            </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cerrar</button>
-                <button type="button" id="btnSaveProject" class="btn btn-primary"
-                    onclick="saveProject()">Guardar</button>
-            </div>
-        </div>
+          </div>
+        </form>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cerrar</button>
+        <button type="button" id="btnSaveProject" class="btn btn-primary" onclick="saveProject()">Guardar</button>
+      </div>
     </div>
+  </div>
 </div>
-
-<script>
-    function trimProjectInput(input) {
-        if (!input) return;
-        input.value = (input.value || '').trim();
-    }
-
-    function isValidSonarProjectKey(value) {
-        const projectKey = (value || '').trim();
-        if (!projectKey) return false;
-        if (projectKey.length > 400) return false;
-        if (!/^[A-Za-z0-9._:-]+$/.test(projectKey)) return false;
-        return /[^0-9]/.test(projectKey);
-    }
-
-    function sonarProjectKeyValidationMessage() {
-        return 'sonarProjectKey inválido. Use solo letras, números, punto (.), guion (-), guion bajo (_) y dos puntos (:), con al menos un carácter no numérico.';
-    }
-
-    // Abre el modal de nuevo proyecto (onclick desde HTML)
-    function openNewProjectModal() {
-        const modalElement = document.getElementById('newProjectModal');
-        bootstrap.Modal.getOrCreateInstance(modalElement).show();
-    }
-
-    // Guarda un proyecto nuevo (onclick desde HTML)
-    function saveProject() {
-        const newProjectForm = document.getElementById('frmNewProject');
-        if (!newProjectForm?.reportValidity()) return;
-
-        const projectKeyValue = document.getElementById('sonarProjectKey')?.value?.trim() || '';
-        const projectBaseDirValue = document.getElementById('sonarProjectBaseDir')?.value?.trim() || '';
-
-        if (!projectKeyValue || !projectBaseDirValue) {
-            Swal.fire({
-                icon: 'warning',
-                title: 'Campos obligatorios',
-                text: 'Los campos sonarProjectKey y sonarProjectBaseDir son obligatorios.'
-            });
-            return;
-        }
-
-        if (!isValidSonarProjectKey(projectKeyValue)) {
-            Swal.fire({
-                icon: 'warning',
-                title: 'sonarProjectKey inválido',
-                text: sonarProjectKeyValidationMessage()
-            });
-            return;
-        }
-
-        const payload = {
-            sonarProjectKey: projectKeyValue,
-            sonarProjectBaseDir: projectBaseDirValue
-        };
-
-        request('/api/projects', 'POST', payload, function (response) {
-            newProjectForm.reset();
-            const modalElement = document.getElementById('newProjectModal');
-            if (modalElement && window.bootstrap?.Modal) {
-                window.bootstrap.Modal.getOrCreateInstance(modalElement).hide();
-            }
-
-            if (typeof loadProjects === 'function') {
-                setTimeout(loadProjects, 100);
-            }
-
-            if (window.Swal?.fire) {
-                window.Swal.fire({
-                    icon: 'success',
-                    title: 'Proyecto creado',
-                    text: response?.message || 'El proyecto se creó correctamente.',
-                    timer: 1800,
-                    timerProgressBar: true,
-                    showConfirmButton: false
-                });
-            }
-        });
-    }
-</script>

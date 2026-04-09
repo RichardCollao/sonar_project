@@ -14,6 +14,165 @@ const scannerSessions = new Map();
 
 let scannerWss = null;
 
+function buildAuthHeader(sonarToken) {
+  const token = String(sonarToken || '').trim();
+  const credentials = Buffer.from(`${token}:`, 'utf8').toString('base64');
+  return `Basic ${credentials}`;
+}
+
+function normalizeHostUrl(hostUrl) {
+  return String(hostUrl || '').trim().replace(/\/+$/, '');
+}
+
+async function getFromSonarApi(sonarHostUrl, sonarToken, endpoint, payload = {}) {
+  const host = normalizeHostUrl(sonarHostUrl);
+  const url = new URL(`${host}${endpoint}`);
+
+  Object.entries(payload).forEach(function([key, value]) {
+    if (value === undefined || value === null) return;
+    const normalized = String(value).trim();
+    if (!normalized) return;
+    url.searchParams.set(key, normalized);
+  });
+
+  const response = await fetch(url, {
+    method: 'GET',
+    headers: {
+      Authorization: buildAuthHeader(sonarToken),
+      Accept: 'application/json'
+    }
+  });
+
+  const contentType = response.headers.get('content-type') || '';
+  const responseBody = contentType.includes('application/json')
+    ? await response.json()
+    : await response.text();
+
+  if (!response.ok) {
+    const error = new Error('SonarQube API request failed');
+    error.status = response.status;
+    error.body = responseBody;
+    throw error;
+  }
+
+  return responseBody;
+}
+
+async function postToSonarApi(sonarHostUrl, sonarToken, endpoint, payload = {}) {
+  const host = normalizeHostUrl(sonarHostUrl);
+  const url = new URL(`${host}${endpoint}`);
+
+  const requestBody = new URLSearchParams();
+  Object.entries(payload).forEach(function([key, value]) {
+    if (value === undefined || value === null) return;
+    const normalized = String(value).trim();
+    if (!normalized) return;
+    requestBody.set(key, normalized);
+  });
+
+  const response = await fetch(url, {
+    method: 'POST',
+    headers: {
+      Authorization: buildAuthHeader(sonarToken),
+      Accept: 'application/json',
+      'Content-Type': 'application/x-www-form-urlencoded'
+    },
+    body: requestBody
+  });
+
+  const contentType = response.headers.get('content-type') || '';
+  const responseBody = contentType.includes('application/json')
+    ? await response.json()
+    : await response.text();
+
+  if (!response.ok) {
+    const error = new Error('SonarQube API request failed');
+    error.status = response.status;
+    error.body = responseBody;
+    throw error;
+  }
+
+  return responseBody;
+}
+
+function extractSonarErrorMessage(body) {
+  if (!body) return '';
+
+  if (typeof body === 'string') {
+    return body.trim();
+  }
+
+  if (Array.isArray(body.errors)) {
+    const messages = body.errors
+      .map(function(item) { return String(item?.msg || '').trim(); })
+      .filter(Boolean);
+
+    if (messages.length > 0) {
+      return messages.join(' | ');
+    }
+  }
+
+  if (typeof body.message === 'string' && body.message.trim()) {
+    return body.message.trim();
+  }
+
+  return '';
+}
+
+function isSonarProjectAlreadyExistsError(error) {
+  if (!error?.status) return false;
+
+  const message = extractSonarErrorMessage(error.body).toLowerCase();
+  if (!message) return false;
+
+  return message.includes('already exists')
+    || message.includes('similar key already exists')
+    || message.includes('ya existe')
+    || message.includes('clave similar ya existe');
+}
+
+async function ensureSonarProjectExists(projectKey, sonarHostUrl, sonarToken) {
+  const response = await getFromSonarApi(
+    sonarHostUrl,
+    sonarToken,
+    '/api/projects/search',
+    { projects: projectKey, ps: '1' }
+  );
+
+  const components = Array.isArray(response?.components) ? response.components : [];
+  const exists = components.some(function(component) {
+    return String(component?.key || '').trim() === String(projectKey || '').trim();
+  });
+
+  if (exists) {
+    return { created: false };
+  }
+
+  try {
+    await postToSonarApi(
+      sonarHostUrl,
+      sonarToken,
+      '/api/projects/create',
+      { project: projectKey, name: projectKey }
+    );
+
+    return { created: true };
+  } catch (error) {
+    if (isSonarProjectAlreadyExistsError(error)) {
+      return { created: false };
+    }
+
+    const sonarMessage = extractSonarErrorMessage(error.body);
+    const message = sonarMessage
+      ? `No fue posible crear en SonarQube el nombre de proyecto: ${sonarMessage}`
+      : 'No fue posible crear en SonarQube el nombre de proyecto.';
+
+    const wrapped = new Error(message);
+    wrapped.status = error?.status || 500;
+    throw wrapped;
+  }
+}
+
 function isValidProjectKey(value = '') {
   const projectKey = String(value || '').trim();
   if (!projectKey) return false;
@@ -40,11 +199,11 @@ async function readProjectConfig(projectKey) {
   const projects = Array.isArray(bundle?.projects) ? bundle.projects : [];
 
   const project = projects.find(function(item) {
-    return String(item?.sonarProjectKey || '').trim() === String(projectKey || '').trim();
+    return String(item?.projectName || '').trim() === String(projectKey || '').trim();
   });
 
   if (!project) {
-    const error = new Error('Proyecto no encontrado.');
+    const error = new Error('Nombre de proyecto no encontrado.');
     error.code = 'ENOENT';
     throw error;
   }
@@ -199,7 +358,7 @@ function resolveWorkingDir(globalConfig, projectConfig) {
   const globalWorkingDir = resolveWorkspacePath(globalConfig.sonarWorkingDirectory);
   if (globalWorkingDir) return globalWorkingDir;
 
-  return resolveWorkspacePath(projectConfig.sonarProjectBaseDir);
+  return resolveWorkspacePath(projectConfig.projectBaseDir);
 }
 
 async function resolveShellCwd(session) {
@@ -224,9 +383,9 @@ async function resolveShellCwd(session) {
 }
 
 async function buildScannerConfig(payload) {
-  const projectKey = String(payload.projectKey || payload.sonarProjectKey || '').trim();
+  const projectKey = String(payload.projectName || payload.projectKey || '').trim();
   if (!isValidProjectKey(projectKey)) {
-    const error = new Error('Debe seleccionar un proyecto válido.');
+    const error = new Error('Debe seleccionar un nombre de proyecto válido.');
     error.status = 400;
     throw error;
   }
@@ -238,7 +397,7 @@ async function buildScannerConfig(payload) {
     projectConfig = await readProjectConfig(projectKey);
   } catch (error) {
     if (error?.code === 'ENOENT') {
-      const notFound = new Error('No existe la configuración del proyecto seleccionado.');
+      const notFound = new Error('No existe la configuración del nombre de proyecto seleccionado.');
       notFound.status = 404;
       throw notFound;
     }
@@ -260,20 +419,21 @@ async function buildScannerConfig(payload) {
 
   const sonarToken = String(globalConfig.sonarToken || '').trim();
   const sonarHostUrl = getSonarHostUrl();
-  const projectBaseDir = resolveWorkspacePath(projectConfig.sonarProjectBaseDir);
+  const projectBaseDir = resolveWorkspacePath(projectConfig.projectBaseDir);
   const workingDirectory = resolveWorkingDir(globalConfig, projectConfig);
 
   if (!sonarToken || !sonarHostUrl || !projectBaseDir || !workingDirectory) {
-    const error = new Error('Configuración incompleta. Verifique token, host, projectBaseDir y sonarWorkingDirectory.');
+    const error = new Error('Configuración incompleta. Verifique token, host, directorio proyecto y sonarWorkingDirectory.');
     error.status = 400;
     throw error;
   }
 
-  await ensureDirectoryExists(projectBaseDir, 'sonarProjectBaseDir');
+  await ensureDirectoryExists(projectBaseDir, 'directorio proyecto');
   await ensureDirectoryExists(workingDirectory, 'sonarWorkingDirectory');
 
   const sources = normalizeList(payload.txtSources);
   const exclusions = normalizeList(payload.txtExclusions);
+  const sonarProjectState = await ensureSonarProjectExists(projectKey, sonarHostUrl, sonarToken);
   const scannerArgs = buildScannerArgs({
     projectKey,
     projectBaseDir,
@@ -286,6 +446,7 @@ async function buildScannerConfig(payload) {
 
   return {
     projectKey,
+    sonarProjectCreated: !!sonarProjectState.created,
     projectBaseDir,
     sonarHostUrl,
     sonarToken,
@@ -306,7 +467,9 @@ async function createScannerSession(req, res) {
       success: true,
       data: {
         sessionId,
-        wsPath: '/ws/scanner'
+        wsPath: '/ws/scanner',
+        projectName: config.projectKey,
+        sonarProjectCreated: !!config.sonarProjectCreated
       }
     });
   } catch (error) {
@@ -408,7 +571,14 @@ function initScannerWebSocket(server) {
       if (message?.type === 'runScanner') {
         (async function() {
           try {
-            const config = await buildScannerConfig(message.payload || {});
+            const preparedSessionId = String(message?.payload?.sessionId || '').trim();
+            const config = preparedSessionId
+              ? consumeSession(preparedSessionId)
+              : await buildScannerConfig(message.payload || {});
+
+            if (!config) {
+              throw new Error('La sesión de SonarScanner expiró o no es válida.');
+            }
 
             sendSocketMessage(ws, {
               type: 'info',

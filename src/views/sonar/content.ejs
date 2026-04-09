@@ -76,6 +76,12 @@
       if (select) {
         select.addEventListener('change', updateOpenSonarButtonState);
       }
+
+      request('/api/sonar/global', 'GET', null, function(response) {
+        const data = response?.data || {};
+        window.globalSonarHostUrl = data.sonarHostUrl || '';
+      });
+
       updateOpenSonarButtonState();
     });
 
@@ -96,7 +102,7 @@
 
       if (!projectKey) {
         if (typeof Swal !== 'undefined') {
-          Swal.fire({ icon: 'warning', title: 'Proyecto requerido', text: 'Selecciona un proyecto.' });
+          Swal.fire({ icon: 'warning', title: 'Nombre de proyecto requerido', text: 'Selecciona un nombre de proyecto.' });
         }
         return;
       }
@@ -118,7 +124,7 @@
       if (!select) return;
 
       const options = ['<option value="" selected disabled>Seleccionar proyecto</option>']
-        .concat(projects.map(obj => `<option value="${obj.sonarProjectKey || ''}">${obj.sonarProjectKey || ''}</option>`));
+        .concat(projects.map(obj => `<option value="${obj.projectName || ''}">${obj.projectName || ''}</option>`));
 
       select.innerHTML = options.join('\n');
       select.disabled = projects.length === 0;

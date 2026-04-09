@@ -111,7 +111,7 @@ function getPayload() {
   const txtExclusions = byId('txtExclusions');
 
   return {
-    projectKey: projectSelect?.value || '',
+    projectName: projectSelect?.value || '',
     txtSources: txtSources?.value || '',
     txtExclusions: txtExclusions?.value || ''
   };
@@ -156,6 +156,43 @@ function sendRunScanner(payload) {
   }));
 }
 
+function sendRunPreparedSession(sessionId) {
+  const payload = { sessionId };
+
+  if (socket?.readyState !== 1) {
+    pendingRunPayload = payload;
+    return;
+  }
+
+  socket.send(JSON.stringify({
+    type: 'runScanner',
+    payload
+  }));
+}
+
+async function prepareScannerSession(payload) {
+  const response = await fetch('/api/scanner/session', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify(payload)
+  });
+
+  let data = {};
+  try {
+    data = await response.json();
+  } catch {
+    data = {};
+  }
+
+  if (!response.ok || !data?.success) {
+    throw new Error(data?.message || 'No fue posible preparar la sesión de SonarScanner.');
+  }
+
+  return data.data || {};
+}
+
 function connectSocket() {
   if (socket?.readyState === 0 || socket?.readyState === 1) return;
 
@@ -169,7 +206,12 @@ function connectSocket() {
     if (pendingRunPayload) {
       const payload = pendingRunPayload;
       pendingRunPayload = null;
-      sendRunScanner(payload);
+
+      if (payload?.sessionId) {
+        sendRunPreparedSession(payload.sessionId);
+      } else {
+        sendRunScanner(payload);
+      }
     }
   });
 
@@ -229,9 +271,9 @@ async function runScanner() {
   if (!terminal) return;
 
   const payload = getPayload();
-  if (!payload.projectKey) {
+  if (!payload.projectName) {
     if (typeof Swal !== 'undefined') {
-      Swal.fire({ icon: 'warning', title: 'Proyecto requerido', text: 'Selecciona un proyecto antes de ejecutar SonarScanner.' });
+      Swal.fire({ icon: 'warning', title: 'Nombre de proyecto requerido', text: 'Selecciona un nombre de proyecto antes de ejecutar SonarScanner.' });
     }
     return;
   }
@@ -239,6 +281,34 @@ async function runScanner() {
   setScannerButtonState(false);
 
   writeLine('\r\nPreparando sesión de SonarScanner...\r\n');
-  connectSocket();
-  sendRunScanner(payload);
+
+  try {
+    const session = await prepareScannerSession(payload);
+
+    if (session?.sonarProjectCreated && typeof Swal !== 'undefined' && typeof Swal.fire === 'function') {
+      await Swal.fire({
+        icon: 'info',
+        title: 'Proyecto creado en SonarQube',
+        text: `Se creó en SonarQube el proyecto con nombre ${session.projectName || payload.projectName}. Pulsa Aceptar para continuar con el análisis.`,
+        confirmButtonText: 'Aceptar',
+        allowOutsideClick: false,
+        allowEscapeKey: false
+      });
+    }
+
+    connectSocket();
+    sendRunPreparedSession(session.sessionId);
+  } catch (error) {
+    writeLine(`\r\n[ERROR] ${error?.message || 'No fue posible preparar SonarScanner.'}\r\n`);
+
+    if (typeof Swal !== 'undefined' && typeof Swal.fire === 'function') {
+      Swal.fire({
+        icon: 'error',
+        title: 'Error',
+        text: error?.message || 'No fue posible preparar SonarScanner.'
+      });
+    }
+
+    setScannerButtonState(false);
+  }
 }

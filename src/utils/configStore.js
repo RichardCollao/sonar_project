@@ -80,13 +80,16 @@ function normalizeSonarBundle(raw) {
         return item && typeof item === 'object';
       })
       .map(function (item) {
+        const projectName = String(item.projectName || item.sonarProjectKey || '').trim();
+        const projectBaseDir = String(item.projectBaseDir || item.sonarProjectBaseDir || '').trim();
+
         return {
-          sonarProjectKey: String(item.sonarProjectKey || '').trim(),
-          sonarProjectBaseDir: String(item.sonarProjectBaseDir || '').trim()
+          projectName,
+          projectBaseDir
         };
       })
       .filter(function (item) {
-        return !!item.sonarProjectKey;
+        return !!item.projectName;
       })
   };
 }

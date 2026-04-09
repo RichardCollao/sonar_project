@@ -1,6 +1,6 @@
 <div class="row mt-3">
   <div class="d-flex justify-content-between align-items-center mb-2">
-    <h3 class="mb-0"><i class="bi bi-sliders"></i> Configuración</h3>
+    <h3 class="mb-0"><i class="bi bi-sliders"></i> Configuración global</h3>
   </div>
   <hr>
 
@@ -32,4 +32,254 @@
     </div>
   </div>
 
+  <div class="col-12 mb-4">
+    <div class="card">
+      <div class="card-header d-flex align-items-center justify-content-between flex-wrap gap-2">
+        <div class="d-flex align-items-center gap-2">
+          <i class="bi bi-diagram-3"></i>
+          <span class="fw-semibold">Proyectos</span>
+        </div>
+        <button id="btnNewProject" class="btn btn-sm btn-outline-secondary" type="button" onclick="openNewProjectModal()">
+          <i class="bi bi-journal-plus me-1"></i>Crear proyecto
+        </button>
+      </div>
+      <div class="card-body">
+        <div class="table-responsive">
+          <table id="tblProjects" class="table table-sm table-striped table-bordered table-hover align-middle w-100">
+            <thead>
+              <tr>
+                <th>ID</th>
+                <th>Nombre proyecto</th>
+                <th>Directorio proyecto</th>
+                <th>Acciones</th>
+              </tr>
+            </thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+
 </div>
+
+<%- include('../sonar/newProjectModal') %>
+<%- include('../sonar/editProjectModal') %>
+<%- include('../sonar/fileExplorerModal') %>
+
+<script>
+  function trimProjectInput(input) {
+    if (!input) return;
+    input.value = (input.value || '').trim();
+  }
+
+  function isValidProjectName(value) {
+    const projectName = (value || '').trim();
+    if (!projectName) return false;
+    if (projectName.length > 400) return false;
+    if (!/^[A-Za-z0-9._:-]+$/.test(projectName)) return false;
+    return /[^0-9]/.test(projectName);
+  }
+
+  function projectNameValidationMessage() {
+    return 'nombre proyecto inválido. Use solo letras, números, punto (.), guion (-), guion bajo (_) y dos puntos (:), con al menos un carácter no numérico.';
+  }
+
+  function poblarTabla(rows = []) {
+    if (typeof $ === 'undefined' || !$.fn?.dataTable) return;
+    if (!document.getElementById('tblProjects')) return;
+
+    ($.fn.dataTable.isDataTable('#tblProjects')) && $('#tblProjects').DataTable().clear().destroy();
+
+    const dataSet = [];
+
+    rows.forEach(function (row, index) {
+      const projectName = row.projectName || '';
+      const projectBaseDir = row.projectBaseDir || '';
+
+      dataSet.push([
+        String(index + 1),
+        projectName,
+        projectBaseDir ? `<%= workspaceBaseDir %>/${projectBaseDir}` : '',
+        `<div class="text-center d-flex justify-content-center gap-1">
+            <button type="button" class="btn btn-outline-primary btn-sm mx-1" data-project-name="${encodeURIComponent(projectName)}" data-project-base-dir="${encodeURIComponent(projectBaseDir)}" title="Editar" onclick="editProject(this)"><i class="bi bi-pencil-square"></i></button>
+            <button type="button" class="btn btn-outline-danger btn-sm mx-1" data-project-name="${encodeURIComponent(projectName)}" title="Eliminar" onclick="deleteProject(this)"><i class="bi bi-trash3"></i></button>
+        </div>`
+      ]);
+    });
+
+    $('#tblProjects').DataTable({
+      data: dataSet,
+      paging: true,
+      ordering: true,
+      info: true,
+      searching: true,
+      lengthChange: true,
+      order: [],
+      pageLength: 10,
+      columnDefs: [
+        { targets: 3, orderable: false, searchable: false }
+      ],
+    });
+
+    $('#tblProjects').css('max-width', '99.9%');
+  }
+
+  function openNewProjectModal() {
+    const modalElement = document.getElementById('newProjectModal');
+    bootstrap.Modal.getOrCreateInstance(modalElement).show();
+  }
+
+  function saveProject() {
+    const newProjectForm = document.getElementById('frmNewProject');
+    if (!newProjectForm?.reportValidity()) return;
+
+    const projectNameValue = document.getElementById('projectName')?.value?.trim() || '';
+    const projectBaseDirValue = document.getElementById('projectBaseDir')?.value?.trim() || '';
+
+    if (!projectNameValue || !projectBaseDirValue) {
+      Swal.fire({
+        icon: 'warning',
+        title: 'Campos obligatorios',
+        text: 'Los campos nombre proyecto y directorio proyecto son obligatorios.'
+      });
+      return;
+    }
+
+    if (!isValidProjectName(projectNameValue)) {
+      Swal.fire({
+        icon: 'warning',
+        title: 'nombre proyecto inválido',
+        text: projectNameValidationMessage()
+      });
+      return;
+    }
+
+    const payload = {
+      projectName: projectNameValue,
+      projectBaseDir: projectBaseDirValue
+    };
+
+    request('/api/projects', 'POST', payload, function (response) {
+      newProjectForm.reset();
+      const modalElement = document.getElementById('newProjectModal');
+      if (modalElement && window.bootstrap?.Modal) {
+        window.bootstrap.Modal.getOrCreateInstance(modalElement).hide();
+      }
+
+      if (typeof loadProjects === 'function') {
+        setTimeout(loadProjects, 100);
+      }
+
+      if (window.Swal?.fire) {
+        window.Swal.fire({
+          icon: 'success',
+          title: 'Proyecto creado',
+          text: response?.message || 'El proyecto se creó correctamente.',
+          timer: 1800,
+          timerProgressBar: true,
+          showConfirmButton: false
+        });
+      }
+    });
+  }
+
+  function openEditProjectModal(projectName, projectBaseDir) {
+    const modalElement = document.getElementById('editProjectModal');
+    if (!modalElement) return;
+
+    const currentNameInput = document.getElementById('editProjectCurrentName');
+    const projectNameInput = document.getElementById('editProjectName');
+    const projectBaseDirInput = document.getElementById('editProjectBaseDir');
+
+    if (currentNameInput) currentNameInput.value = projectName || '';
+    if (projectNameInput) projectNameInput.value = projectName || '';
+    if (projectBaseDirInput) projectBaseDirInput.value = projectBaseDir || '';
+
+    bootstrap.Modal.getOrCreateInstance(modalElement).show();
+  }
+
+  function editProject(button) {
+    const currentProjectName = decodeURIComponent(button?.dataset?.projectName || '');
+    if (!currentProjectName) return;
+
+    const currentProjectBaseDir = decodeURIComponent(button?.dataset?.projectBaseDir || '');
+    openEditProjectModal(currentProjectName, currentProjectBaseDir);
+  }
+
+  function saveEditedProject() {
+    const editProjectForm = document.getElementById('frmEditProject');
+    if (!editProjectForm?.reportValidity()) return;
+
+    const currentProjectName = document.getElementById('editProjectCurrentName')?.value?.trim() || '';
+    const projectNameValue = document.getElementById('editProjectName')?.value?.trim() || '';
+    const projectBaseDirValue = document.getElementById('editProjectBaseDir')?.value?.trim() || '';
+
+    if (!currentProjectName || !projectNameValue || !projectBaseDirValue) {
+      Swal.fire({
+        icon: 'warning',
+        title: 'Campos obligatorios',
+        text: 'Los campos nombre proyecto y directorio proyecto son obligatorios.'
+      });
+      return;
+    }
+
+    if (!isValidProjectName(projectNameValue)) {
+      Swal.fire({
+        icon: 'warning',
+        title: 'nombre proyecto inválido',
+        text: projectNameValidationMessage()
+      });
+      return;
+    }
+
+    const payload = {
+      projectName: projectNameValue,
+      projectBaseDir: projectBaseDirValue
+    };
+
+    request(`/api/projects/${encodeURIComponent(currentProjectName)}`, 'PUT', payload, function (response) {
+      const modalElement = document.getElementById('editProjectModal');
+      if (modalElement && window.bootstrap?.Modal) {
+        window.bootstrap.Modal.getOrCreateInstance(modalElement).hide();
+      }
+
+      if (typeof loadProjects === 'function') {
+        setTimeout(loadProjects, 100);
+      }
+
+      if (typeof iziToastSuccess === 'function') {
+        const successMessage = response?.message || 'Proyecto actualizado correctamente.';
+        iziToastSuccess(successMessage);
+      }
+    });
+  }
+
+  async function deleteProject(button) {
+    const projectName = decodeURIComponent(button.dataset.projectName || '');
+    if (!projectName) return;
+
+    const result = await Swal.fire({
+      title: '¿Eliminar proyecto?',
+      text: 'Esta acción no se puede deshacer.',
+      icon: 'warning',
+      showCancelButton: true,
+      confirmButtonText: 'Sí, eliminar',
+      cancelButtonText: 'Cancelar',
+      confirmButtonColor: '#dc3545'
+    });
+
+    if (!result.isConfirmed) return;
+
+    request(`/api/projects/${encodeURIComponent(projectName)}`, 'DELETE', null, function (response) {
+      if (typeof loadProjects === 'function') {
+        setTimeout(loadProjects, 100);
+      }
+
+      if (typeof iziToastSuccess === 'function') {
+        const successMessage = response?.message || 'Proyecto eliminado correctamente.';
+        iziToastSuccess(successMessage);
+      }
+    });
+  }
+</script>

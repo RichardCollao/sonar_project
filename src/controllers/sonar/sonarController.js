@@ -5,8 +5,8 @@ const {
 } = require('../../utils/configStore');
 
 const REQUIRED_PROJECT_FIELDS = [
-  'sonarProjectKey',
-  'sonarProjectBaseDir'
+  'projectName',
+  'projectBaseDir'
 ];
 
 function renderSonar(req, res) {
@@ -129,34 +129,22 @@ function isSonarProjectNotFoundError(error) {
     || message.includes('no existe');
 }
 
-function isSonarProjectAlreadyExistsError(error) {
-  if (!error?.status) return false;
-
-  const message = extractSonarErrorMessage(error.body).toLowerCase();
-  if (!message) return false;
-
-  return message.includes('already exists')
-    || message.includes('similar key already exists')
-    || message.includes('ya existe')
-    || message.includes('clave similar ya existe');
-}
-
 function hasSameProjectKey(existingProject, projectKey) {
   const safeProject = existingProject || {};
-  const existingKey = String(safeProject.sonarProjectKey || '').trim();
+  const existingKey = String(safeProject.projectName || '').trim();
 
   return existingKey === projectKey;
 }
 
 function findProjectIndex(projects, projectKey) {
   return projects.findIndex(function(project) {
-    return String(project?.sonarProjectKey || '').trim() === projectKey;
+    return String(project?.projectName || '').trim() === projectKey;
   });
 }
 
 function handleSonarError(res, error, operation) {
   if (error?.code === 'ENOENT') {
-    return res.status(404).json({ success: false, message: 'Proyecto o configuración global no encontrados.' });
+    return res.status(404).json({ success: false, message: 'Nombre de proyecto o configuración global no encontrados.' });
   }
 
   if (error?.status) {
@@ -186,13 +174,13 @@ async function createProject(req, res) {
       });
     }
 
-    const projectKey = String(payload.sonarProjectKey || '').trim();
-    const projectBaseDir = String(payload.sonarProjectBaseDir || '').trim();
+    const projectKey = String(payload.projectName || '').trim();
+    const projectBaseDir = String(payload.projectBaseDir || '').trim();
 
     if (!isValidProjectKeyForFileName(projectKey)) {
       return res.status(400).json({
         success: false,
-        message: 'sonarProjectKey inválido. Use solo letras, números, punto (.), guion (-), guion bajo (_) y dos puntos (:), con al menos un carácter no numérico.'
+        message: 'nombre proyecto inválido. Use solo letras, números, punto (.), guion (-), guion bajo (_) y dos puntos (:), con al menos un carácter no numérico.'
       });
     }
 
@@ -205,38 +193,20 @@ async function createProject(req, res) {
       if (hasSameProjectKey(existingProject, projectKey)) {
         return res.status(200).json({
           success: true,
-          projectKey,
-          message: 'El proyecto ya existe localmente con la misma key.'
+          projectName: projectKey,
+          message: 'El nombre de proyecto ya existe localmente con el mismo valor.'
         });
       }
 
       return res.status(409).json({
         success: false,
-        message: `Ya existe una configuración local con key ${projectKey}.`
+        message: `Ya existe una configuración local con el nombre de proyecto ${projectKey}.`
       });
     }
 
-    const { sonarHostUrl, sonarToken } = await resolveConfig();
-    let warningMessage = '';
-
-    try {
-      await postToSonarApi(
-        sonarHostUrl,
-        sonarToken,
-        '/api/projects/create',
-        { project: projectKey, name: projectKey }
-      );
-    } catch (error) {
-      if (!isSonarProjectAlreadyExistsError(error)) {
-        throw error;
-      }
-
-      warningMessage = `El proyecto ${projectKey} ya existía en SonarQube; se creó solo la configuración local.`;
-    }
-
     const projectData = {
-      sonarProjectKey: projectKey,
-      sonarProjectBaseDir: projectBaseDir
+      projectName: projectKey,
+      projectBaseDir
     };
 
     const nextProjects = [...projects, projectData];
@@ -252,17 +222,20 @@ async function createProject(req, res) {
 
     return res.status(201).json({
       success: true,
-      projectKey,
-      message: warningMessage || 'Proyecto creado correctamente.'
+      projectName: projectKey,
+      message: 'Nombre de proyecto guardado correctamente.'
     });
   } catch (error) {
-    return handleSonarError(res, error, 'crear proyecto');
+    return res.status(error?.status || 500).json({
+      success: false,
+      message: error?.message || 'No fue posible guardar el nombre de proyecto.'
+    });
   }
 }
 
 async function updateProject(req, res) {
   try {
-    const currentProjectKey = String(req.params.projectKey || '').trim();
+    const currentProjectKey = String(req.params.projectName || '').trim();
 
     const payload = req.body || {};
     const missing = REQUIRED_PROJECT_FIELDS.filter(function(field) { return !payload[field] || !String(payload[field]).trim(); });
@@ -274,18 +247,18 @@ async function updateProject(req, res) {
       });
     }
 
-    const nextProjectKey = String(payload.sonarProjectKey || '').trim();
-    const nextProjectBaseDir = String(payload.sonarProjectBaseDir || '').trim();
+    const nextProjectKey = String(payload.projectName || '').trim();
+    const nextProjectBaseDir = String(payload.projectBaseDir || '').trim();
 
     if (!isValidProjectKeyForFileName(nextProjectKey)) {
       return res.status(400).json({
         success: false,
-        message: 'sonarProjectKey inválido. Use solo letras, números, punto (.), guion (-), guion bajo (_) y dos puntos (:), con al menos un carácter no numérico.'
+        message: 'nombre proyecto inválido. Use solo letras, números, punto (.), guion (-), guion bajo (_) y dos puntos (:), con al menos un carácter no numérico.'
       });
     }
 
     if (!isValidProjectKeyForFileName(currentProjectKey)) {
-      return res.status(400).json({ success: false, message: 'Proyecto inválido.' });
+      return res.status(400).json({ success: false, message: 'Nombre de proyecto inválido.' });
     }
 
     const store = await getBundle();
@@ -293,7 +266,7 @@ async function updateProject(req, res) {
     const currentIndex = findProjectIndex(projects, currentProjectKey);
 
     if (currentIndex < 0) {
-      return res.status(404).json({ success: false, message: 'Proyecto no encontrado.' });
+      return res.status(404).json({ success: false, message: 'Nombre de proyecto no encontrado.' });
     }
 
     const keyChanged = currentProjectKey !== nextProjectKey;
@@ -305,7 +278,7 @@ async function updateProject(req, res) {
       if (duplicateIndex >= 0) {
         return res.status(409).json({
           success: false,
-          message: `Ya existe un proyecto local con key ${nextProjectKey}.`
+          message: `Ya existe un proyecto local con el nombre de proyecto ${nextProjectKey}.`
         });
       }
 
@@ -323,13 +296,13 @@ async function updateProject(req, res) {
           throw error;
         }
 
-        warningMessage = `El proyecto ${currentProjectKey} no existía en SonarQube; se actualizó solo la configuración local.`;
+        warningMessage = `El nombre de proyecto ${currentProjectKey} no existía en SonarQube; se actualizó solo la configuración local.`;
       }
     }
 
     const updatedProject = {
-      sonarProjectKey: nextProjectKey,
-      sonarProjectBaseDir: nextProjectBaseDir
+      projectName: nextProjectKey,
+      projectBaseDir: nextProjectBaseDir
     };
 
     const nextProjects = [...projects];
@@ -345,8 +318,8 @@ async function updateProject(req, res) {
 
     return res.json({
       success: true,
-      projectKey: nextProjectKey,
-      message: warningMessage || 'Proyecto actualizado correctamente.'
+      projectName: nextProjectKey,
+      message: warningMessage || 'Nombre de proyecto actualizado correctamente.'
     });
   } catch (error) {
     return handleSonarError(res, error, 'actualizar proyecto');
@@ -355,17 +328,17 @@ async function updateProject(req, res) {
 
 async function deleteProject(req, res) {
   try {
-    const projectKey = String(req.params.projectKey || '').trim();
+    const projectKey = String(req.params.projectName || '').trim();
 
     if (!isValidProjectKeyForFileName(projectKey)) {
-      return res.status(400).json({ success: false, message: 'Proyecto inválido.' });
+      return res.status(400).json({ success: false, message: 'Nombre de proyecto inválido.' });
     }
 
     const store = await getBundle();
     const projects = Array.isArray(store?.bundle?.projects) ? store.bundle.projects : [];
     const currentIndex = findProjectIndex(projects, projectKey);
     if (currentIndex < 0) {
-      return res.status(404).json({ success: false, message: 'Proyecto no encontrado.' });
+      return res.status(404).json({ success: false, message: 'Nombre de proyecto no encontrado.' });
     }
 
     const { sonarHostUrl, sonarToken } = await resolveConfig();
@@ -384,7 +357,7 @@ async function deleteProject(req, res) {
         throw error;
       }
 
-      warningMessage = `El proyecto ${projectKey} no existía en SonarQube; se eliminó solo la configuración local.`;
+      warningMessage = `El nombre de proyecto ${projectKey} no existía en SonarQube; se eliminó solo la configuración local.`;
     }
 
     const nextProjects = projects.filter(function(item, index) {
@@ -400,7 +373,7 @@ async function deleteProject(req, res) {
     );
 
 
-    return res.json({ success: true, message: warningMessage || 'Proyecto eliminado correctamente.' });
+    return res.json({ success: true, message: warningMessage || 'Nombre de proyecto eliminado correctamente.' });
   } catch (error) {
     return handleSonarError(res, error, 'eliminar proyecto');
   }

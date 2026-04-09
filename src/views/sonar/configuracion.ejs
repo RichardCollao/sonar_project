@@ -1,120 +1,46 @@
-<!-- Configuración -->
-<div class="mt-3 p-3">
-        <div class="d-flex align-items-center justify-content-between flex-wrap gap-2">
-            <h3 class="mb-0"><i class="bi bi-gear"></i> Configuración Sonar</h3>
-        </div>
-        <hr>
-        <form id="frmGlobalConfig" class="row g-3">
-            <div class="col-12 col-md-4">
-                <label for="globalSonarToken" class="form-label">sonarToken</label>
-                <input type="text" class="form-control form-control-sm" id="globalSonarToken" required>
+<div class="row mt-3">
+    <div class="d-flex justify-content-between align-items-center mb-2">
+        <h3 class="mb-0"><i class="bi bi-gear"></i> Configuración Sonar</h3>
+    </div>
+    <hr>
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header d-flex align-items-center gap-2">
+                <i class="bi bi-key"></i>
+                <span class="fw-semibold">Credenciales</span>
             </div>
-
-            <div class="col-12 col-md-1">
-                <label for="btnSaveGlobalConfig" class="form-label">&nbsp;</label>
-                <button type="button" id="btnSaveGlobalConfig" class="btn btn-sm btn-outline-secondary form-control"
-                    onclick="saveGlobalConfig()">
-                    <i class="bi bi-floppy me-1"></i>Guardar</button>
+            <div class="card-body">
+                <form id="frmGlobalConfig" class="row g-3">
+                    <div class="col-12 col-md-6 col-lg-4">
+                        <label for="globalSonarToken" class="form-label">sonarToken</label>
+                        <input type="text" class="form-control form-control-sm" id="globalSonarToken" required>
+                    </div>
+                    <div class="col-12 col-md-2 col-lg-2">
+                        <label for="btnSaveGlobalConfig" class="form-label">&nbsp;</label>
+                        <button type="button" id="btnSaveGlobalConfig"
+                            class="btn btn-sm btn-outline-secondary form-control" onclick="saveGlobalConfig()">
+                            <i class="bi bi-floppy me-1"></i>Guardar
+                        </button>
+                    </div>
+                </form>
             </div>
-        </form>
-        <hr>
-        <div class="mt-3 d-flex">
-            <button id="btnNewProject" class="btn btn-sm btn-outline-secondary" type="button"
-                onclick="openNewProjectModal()">
-                <i class="bi bi-journal-plus me-1"></i>Crear proyecto
-            </button>
         </div>
     </div>
-
-    <div class="table-responsive">
-        <table id="tblProjects" class="table table-sm table-striped table-bordered table-hover align-middle w-100">
-            <thead>
-                <tr>
-                    <th>ID</th>
-                    <th>Project Key</th>
-                    <th>Project Base Dir</th>
-                    <th>Acciones</th>
-                </tr>
-            </thead>
-            <tbody></tbody>
-        </table>
-    </div>
-
-    <%- include('newProjectModal') %>
-    <%- include('editProjectModal') %>
-    <%- include('fileExplorerModal') %>
+</div>
 
 <script>
     document.addEventListener('DOMContentLoaded', function () {
         loadGlobalConfig();
     });
 
-
-    // Renderiza la tabla de proyectos con DataTables usando la lista recibida.
-    function poblarTabla(rows = []) {
-        if (typeof $ === 'undefined' || !$.fn?.dataTable) return;
-        if (!document.getElementById('tblProjects')) return;
-
-        ($.fn.dataTable.isDataTable('#tblProjects')) && $('#tblProjects').DataTable().clear().destroy();
-
-        const dataSet = [];
-
-        rows.forEach(function (row, index) {
-            const projectKey = row.sonarProjectKey || '';
-
-            dataSet.push([
-                String(index + 1),
-                projectKey,
-                row.sonarProjectBaseDir ? `<%= workspaceBaseDir %>/${row.sonarProjectBaseDir}` : '',
-                `<div class="text-center d-flex justify-content-center gap-1">
-                    <button type="button" class="btn btn-outline-primary btn-sm mx-1" data-project-key="${encodeURIComponent(projectKey)}" data-project-base-dir="${encodeURIComponent(row.sonarProjectBaseDir || '')}" title="Editar" onclick="editProject(this)"><i class="bi bi-pencil-square"></i></button>
-                    <button type="button" class="btn btn-outline-danger btn-sm mx-1" data-project-key="${encodeURIComponent(projectKey)}" title="Eliminar" onclick="deleteProject(this)"><i class="bi bi-trash3"></i></button>
-                </div>`
-            ]);
-        });
-
-        $('#tblProjects').DataTable({
-            data: dataSet,
-            paging: true,
-            ordering: true,
-            info: true,
-            searching: true,
-            lengthChange: true,
-            order: [],
-            pageLength: 10,
-            columnDefs: [
-                { targets: 3, orderable: false, searchable: false }
-            ],
-        });
-
-        $('#tblProjects').css('max-width', '99.9%');
-    }
-
-    async function editProject(button) {
-        const currentProjectKey = decodeURIComponent(button?.dataset?.projectKey || '');
-        if (!currentProjectKey) return;
-
-        const currentProjectBaseDir = decodeURIComponent(button?.dataset?.projectBaseDir || '');
-
-        if (typeof openEditProjectModal === 'function') {
-            openEditProjectModal(currentProjectKey, currentProjectBaseDir);
-        }
-    }
-
-    // Carga la configuración global y la pinta en el formulario.
     function loadGlobalConfig() {
-        request('/api/projects/global', 'GET', null, function (response) {
+        request('/api/sonar/global', 'GET', null, function (response) {
             const data = response?.data || {};
             document.getElementById('globalSonarToken').value = data.sonarToken || '';
             window.globalSonarHostUrl = data.sonarHostUrl;
-            if (data.theme) {
-                localStorage.setItem('theme', data.theme);
-                applyTheme(data.theme === 'dark');
-            }
         });
     }
 
-    // Guarda configuración global (onclick desde HTML)
     function saveGlobalConfig() {
         const globalConfigForm = document.getElementById('frmGlobalConfig');
         if (!globalConfigForm?.reportValidity()) return;
@@ -123,7 +49,7 @@
             sonarToken: document.getElementById('globalSonarToken').value.trim() || ''
         };
 
-        request('/api/projects/global', 'POST', payload, function (json) {
+        request('/api/sonar/global', 'POST', payload, function (json) {
             loadGlobalConfig();
             if (json && json.warning) {
                 Swal.fire({
@@ -136,40 +62,11 @@
                 Swal.fire({
                     icon: 'success',
                     title: 'Configuración guardada',
-                    text: 'La configuración global se guardó correctamente.',
+                    text: 'La configuración de Sonar se guardó correctamente.',
                     timer: 3000,
                     timerProgressBar: true,
                     showConfirmButton: false
                 });
-            }
-        });
-    }
-
-    // Elimina proyecto (onclick desde HTML)
-    async function deleteProject(button) {
-        const projectKey = decodeURIComponent(button.dataset.projectKey || '');
-        if (!projectKey) return;
-
-        const result = await Swal.fire({
-            title: '¿Eliminar proyecto?',
-            text: 'Esta acción no se puede deshacer.',
-            icon: 'warning',
-            showCancelButton: true,
-            confirmButtonText: 'Sí, eliminar',
-            cancelButtonText: 'Cancelar',
-            confirmButtonColor: '#dc3545'
-        });
-
-        if (!result.isConfirmed) return;
-
-        request(`/api/projects/${encodeURIComponent(projectKey)}`, 'DELETE', null, function (response) {
-            if (typeof loadProjects === 'function') {
-                setTimeout(loadProjects, 100);
-            }
-
-            if (typeof iziToastSuccess === 'function') {
-                const successMessage = response?.message || 'Proyecto eliminado correctamente.';
-                iziToastSuccess(successMessage);
             }
         });
     }
