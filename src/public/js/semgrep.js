@@ -141,8 +141,32 @@ function getPayload() {
   return {
     projectName: byId('selSemgrepProject')?.value || '',
     txtSources: byId('txtSemgrepSources')?.value || '',
-    txtExclusions: byId('txtSemgrepExclusions')?.value || ''
+    txtExclusions: byId('txtSemgrepExclusions')?.value || '',
+    configFlags: getSelectedSemgrepConfigFlags()
   };
+}
+
+function getSelectedSemgrepConfigFlags() {
+  const nodes = document.querySelectorAll('.semgrep-config-flag');
+  const values = [];
+
+  nodes.forEach(function (input) {
+    if (!input.checked) return;
+
+    let raw = '';
+    if (typeof input.value === 'string' && input.value) {
+      raw = input.value;
+    } else if (input.dataset && typeof input.dataset.configValue === 'string') {
+      raw = input.dataset.configValue;
+    }
+
+    const normalized = String(raw || '').trim();
+    if (normalized) {
+      values.push(normalized);
+    }
+  });
+
+  return values;
 }
 
 function writeLine(line) {
@@ -513,6 +537,16 @@ function runScanner() {
       Swal.fire({ icon: 'warning', title: 'Nombre de proyecto requerido', text: 'Selecciona un nombre de proyecto antes de ejecutar SemgrepScanner.' });
     }
     return;
+  }
+
+  const selectedConfigsCount = Array.isArray(payload.configFlags) ? payload.configFlags.length : 0;
+  if (selectedConfigsCount > 10 && typeof Swal !== 'undefined') {
+    Swal.fire({
+      icon: 'info',
+      title: 'Muchas configuraciones seleccionadas',
+      text: 'Has seleccionado muchas configuraciones de reglas. Esto puede hacer que el análisis sea más lento y genere más falsos positivos.',
+      confirmButtonText: 'Continuar de todos modos'
+    });
   }
 
   setScannerButtonState(true);

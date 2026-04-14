@@ -34,6 +34,12 @@ function isValidProjectKeyForFileName(value = '') {
 }
 
 function normalizeList(rawValue = '') {
+  if (Array.isArray(rawValue)) {
+    return rawValue
+      .map(function(item) { return String(item || '').trim(); })
+      .filter(Boolean);
+  }
+
   return String(rawValue || '')
     .split(/[\n,]/)
     .map(function(item) { return item.trim(); })
@@ -141,12 +147,22 @@ function buildSemgrepArgs(config) {
     config.projectBaseDirContainer,
     'semgrep',
     'semgrep',
-    'scan',
-    '--config',
-    config.rulesFilePathContainer,
-    '--metrics=off',
-    '--json'
+    'scan'
   ];
+
+  const configFlags = Array.isArray(config.configFlags) ? config.configFlags : [];
+
+  configFlags.forEach(function(flag) {
+    const trimmed = String(flag || '').trim();
+    if (!trimmed) return;
+    args.push(`--config=${trimmed}`);
+  });
+
+  if (config.rulesFilePathContainer) {
+    args.push('--config', config.rulesFilePathContainer);
+  }
+
+  args.push('--metrics=off', '--json');
 
   config.exclusions.forEach(function(exclusion) {
     args.push('--exclude', exclusion);
@@ -181,6 +197,7 @@ async function buildScannerConfig(payload) {
 
   const sources = normalizeList(payload.txtSources);
   const exclusions = normalizeList(payload.txtExclusions);
+  const configFlags = normalizeList(payload.configFlags);
   const rulesFilePath = await buildRulesFile(semgrepWorkingDirectory, globalConfig);
   const rulesFilePathContainer = toContainerWorkspacePath(rulesFilePath);
   const projectBaseDirContainer = toContainerWorkspacePath(projectBaseDir);
@@ -188,6 +205,7 @@ async function buildScannerConfig(payload) {
     rulesFilePath,
     rulesFilePathContainer,
     projectBaseDirContainer,
+    configFlags,
     sources,
     exclusions
   });

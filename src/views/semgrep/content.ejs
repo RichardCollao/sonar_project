@@ -36,6 +36,183 @@
 <hr>
 
 <div class="row mt-3">
+  <div class="col-md-12 mb-2">
+    <small class="text-muted">Selecciona las configuraciones de reglas de Semgrep a utilizar. Por defecto se usa
+      <code>--config=auto</code>. Puedes combinar varias opciones.</small>
+  </div>
+  <div class="col-md-12">
+    <div class="row g-2 small">
+
+      <div class="col-md-2">
+        <div class="fw-semibold mb-1">Reglas generales</div>
+        <div class="form-check">
+          <input class="form-check-input semgrep-config-flag" type="checkbox" id="cfg-auto" value="auto" checked>
+          <label class="form-check-label" for="cfg-auto">--config=auto</label>
+        </div>
+        <div class="form-check">
+          <input class="form-check-input semgrep-config-flag" type="checkbox" id="cfg-security-audit"
+            value="p/security-audit">
+          <label class="form-check-label" for="cfg-security-audit">p/security-audit</label>
+        </div>
+        <div class="form-check">
+          <input class="form-check-input semgrep-config-flag" type="checkbox" id="cfg-secrets" value="p/secrets">
+          <label class="form-check-label" for="cfg-secrets">p/secrets</label>
+        </div>
+        <div class="form-check">
+          <input class="form-check-input semgrep-config-flag" type="checkbox" id="cfg-owasp" value="p/owasp-top-ten">
+          <label class="form-check-label" for="cfg-owasp">p/owasp-top-ten</label>
+        </div>
+        <div class="form-check">
+          <input class="form-check-input semgrep-config-flag" type="checkbox" id="cfg-ci" value="p/ci">
+          <label class="form-check-label" for="cfg-ci">p/ci</label>
+        </div>
+      </div>
+
+      <div class="col-md-2">
+        <div class="fw-semibold mb-1">Por tipo de vulnerabilidad</div>
+        <div class="form-check">
+          <input class="form-check-input semgrep-config-flag" type="checkbox" id="cfg-xss" value="p/xss">
+          <label class="form-check-label" for="cfg-xss">p/xss</label>
+        </div>
+        <div class="form-check">
+          <input class="form-check-input semgrep-config-flag" type="checkbox" id="cfg-sql-injection"
+            value="p/sql-injection">
+          <label class="form-check-label" for="cfg-sql-injection">p/sql-injection</label>
+        </div>
+        <div class="form-check">
+          <input class="form-check-input semgrep-config-flag" type="checkbox" id="cfg-jwt" value="p/jwt">
+          <label class="form-check-label" for="cfg-jwt">p/jwt</label>
+        </div>
+        <div class="form-check">
+          <input class="form-check-input semgrep-config-flag" type="checkbox" id="cfg-command-injection"
+            value="p/command-injection">
+          <label class="form-check-label" for="cfg-command-injection">p/command-injection</label>
+        </div>
+        <div class="form-check">
+          <input class="form-check-input semgrep-config-flag" type="checkbox" id="cfg-path-traversal"
+            value="p/path-traversal">
+          <label class="form-check-label" for="cfg-path-traversal">p/path-traversal</label>
+        </div>
+        <div class="form-check">
+          <input class="form-check-input semgrep-config-flag" type="checkbox" id="cfg-crypto" value="p/crypto">
+          <label class="form-check-label" for="cfg-crypto">p/crypto</label>
+        </div>
+        <div class="form-check">
+          <input class="form-check-input semgrep-config-flag" type="checkbox" id="cfg-auth" value="p/auth">
+          <label class="form-check-label" for="cfg-auth">p/auth</label>
+        </div>
+        <div class="form-check">
+          <input class="form-check-input semgrep-config-flag" type="checkbox" id="cfg-cors" value="p/cors">
+          <label class="form-check-label" for="cfg-cors">p/cors</label>
+        </div>
+      </div>
+
+      <div class="col-md-2">
+        <div class="fw-semibold mb-1">JavaScript / TypeScript</div>
+        <div class="form-check">
+          <input class="form-check-input semgrep-config-flag" type="checkbox" id="cfg-javascript" value="p/javascript">
+          <label class="form-check-label" for="cfg-javascript">p/javascript</label>
+        </div>
+        <div class="form-check">
+          <input class="form-check-input semgrep-config-flag" type="checkbox" id="cfg-typescript" value="p/typescript">
+          <label class="form-check-label" for="cfg-typescript">p/typescript</label>
+        </div>
+        <div class="form-check">
+          <input class="form-check-input semgrep-config-flag" type="checkbox" id="cfg-nodejs" value="p/nodejs">
+          <label class="form-check-label" for="cfg-nodejs">p/nodejs</label>
+        </div>
+        <div class="form-check">
+          <input class="form-check-input semgrep-config-flag" type="checkbox" id="cfg-react" value="p/react">
+          <label class="form-check-label" for="cfg-react">p/react</label>
+        </div>
+
+        <div class="fw-semibold mb-1 mt-2">Python</div>
+        <div class="form-check">
+          <input class="form-check-input semgrep-config-flag" type="checkbox" id="cfg-python" value="p/python">
+          <label class="form-check-label" for="cfg-python">p/python</label>
+        </div>
+        <div class="form-check">
+          <input class="form-check-input semgrep-config-flag" type="checkbox" id="cfg-django" value="p/django">
+          <label class="form-check-label" for="cfg-django">p/django</label>
+        </div>
+        <div class="form-check">
+          <input class="form-check-input semgrep-config-flag" type="checkbox" id="cfg-flask" value="p/flask">
+          <label class="form-check-label" for="cfg-flask">p/flask</label>
+        </div>
+      </div>
+
+      <div class="col-md-2">
+        <div class="fw-semibold mb-1">Java</div>
+        <div class="form-check">
+          <input class="form-check-input semgrep-config-flag" type="checkbox" id="cfg-java" value="p/java">
+          <label class="form-check-label" for="cfg-java">p/java</label>
+        </div>
+        <div class="form-check">
+          <input class="form-check-input semgrep-config-flag" type="checkbox" id="cfg-spring" value="p/spring">
+          <label class="form-check-label" for="cfg-spring">p/spring</label>
+        </div>
+
+        <div class="fw-semibold mb-1 mt-2">C#</div>
+        <div class="form-check">
+          <input class="form-check-input semgrep-config-flag" type="checkbox" id="cfg-csharp" value="p/csharp">
+          <label class="form-check-label" for="cfg-csharp">p/csharp</label>
+        </div>
+        <div class="form-check">
+          <input class="form-check-input semgrep-config-flag" type="checkbox" id="cfg-dotnet" value="p/dotnet">
+          <label class="form-check-label" for="cfg-dotnet">p/dotnet</label>
+        </div>
+
+        <div class="fw-semibold mb-1 mt-2">Go</div>
+        <div class="form-check">
+          <input class="form-check-input semgrep-config-flag" type="checkbox" id="cfg-golang" value="p/golang">
+          <label class="form-check-label" for="cfg-golang">p/golang</label>
+        </div>
+      </div>
+
+      <div class="col-md-2">
+        <div class="fw-semibold mb-1 mt-2">PHP</div>
+        <div class="form-check">
+          <input class="form-check-input semgrep-config-flag" type="checkbox" id="cfg-php" value="p/php">
+          <label class="form-check-label" for="cfg-php">p/php</label>
+        </div>
+        <div class="form-check">
+          <input class="form-check-input semgrep-config-flag" type="checkbox" id="cfg-laravel" value="p/laravel">
+          <label class="form-check-label" for="cfg-laravel">p/laravel</label>
+        </div>
+      </div>
+      <div class="col-md-2">
+        <div class="fw-semibold mb-1 mt-2">Infraestructura / DevOps</div>
+        <div class="form-check">
+          <input class="form-check-input semgrep-config-flag" type="checkbox" id="cfg-docker" value="p/docker">
+          <label class="form-check-label" for="cfg-docker">p/docker</label>
+        </div>
+        <div class="form-check">
+          <input class="form-check-input semgrep-config-flag" type="checkbox" id="cfg-kubernetes" value="p/kubernetes">
+          <label class="form-check-label" for="cfg-kubernetes">p/kubernetes</label>
+        </div>
+        <div class="form-check">
+          <input class="form-check-input semgrep-config-flag" type="checkbox" id="cfg-terraform" value="p/terraform">
+          <label class="form-check-label" for="cfg-terraform">p/terraform</label>
+        </div>
+        <div class="form-check">
+          <input class="form-check-input semgrep-config-flag" type="checkbox" id="cfg-cloud" value="p/cloud">
+          <label class="form-check-label" for="cfg-cloud">p/cloud</label>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="mt-1 text-muted small">
+    <span class="d-block">Ejemplos rápidos:</span>
+    <span class="d-block">Básico: <code>--config=p/security-audit</code> + <code>--config=p/secrets</code></span>
+    <span class="d-block">Profesional: <code>--config=p/security-audit</code> + <code>--config=p/secrets</code> +
+      <code>--config=p/owasp-top-ten</code> + <code>--config=p/ci</code></span>
+  </div>
+</div>
+
+<hr>
+
+<div class="row mt-3">
   <div class="col-md-4">
     <i class="bi bi-terminal"></i> Consola Semgrep
   </div>
@@ -62,107 +239,107 @@
 
 <%- include('diffBranchesModal') %>
 
-<script>
-  document.addEventListener('DOMContentLoaded', function () {
-    const select = document.querySelector('#selSemgrepProject');
-    if (select) {
-      select.addEventListener('change', updateSemgrepButtonState);
-    }
-
-    loadSemgrepProjects();
-    updateSemgrepButtonState();
-  });
-
-  function updateSemgrepButtonState() {
-    const select = document.querySelector('#selSemgrepProject');
-    const scannerButton = document.querySelector('#btnSemgrepScanner');
-    const selectedProject = (select?.value || '').trim();
-
-    if (scannerButton) {
-      scannerButton.disabled = !selectedProject;
-    }
-
-    if (typeof globalThis.updateSemgrepPdfButtonState === 'function') {
-      globalThis.updateSemgrepPdfButtonState();
-    }
-  }
-
-  function loadSemgrepProjects() {
-    request('/api/projects', 'GET', null, function(response) {
-      const projects = Array.isArray(response?.data) ? response.data : [];
+  <script>
+    document.addEventListener('DOMContentLoaded', function () {
       const select = document.querySelector('#selSemgrepProject');
-      if (!select) return;
+      if (select) {
+        select.addEventListener('change', updateSemgrepButtonState);
+      }
 
-      const options = ['<option value="" selected disabled>Seleccionar proyecto</option>']
-        .concat(projects.map(function(obj) {
-          const projectName = String(obj?.projectName || '').trim();
-          return `<option value="${projectName}">${projectName}</option>`;
-        }));
-
-      select.innerHTML = options.join('\n');
-      select.disabled = projects.length === 0;
+      loadSemgrepProjects();
       updateSemgrepButtonState();
     });
-  }
 
-  function openSemgrepDiffModal() {
-    const projectKey = (document.querySelector('#selSemgrepProject')?.value || '').trim();
-    if (!projectKey) {
-      Swal.fire({ icon: 'warning', title: 'Atención', text: 'Selecciona un nombre de proyecto antes de comparar ramas.' });
-      return;
+    function updateSemgrepButtonState() {
+      const select = document.querySelector('#selSemgrepProject');
+      const scannerButton = document.querySelector('#btnSemgrepScanner');
+      const selectedProject = (select?.value || '').trim();
+
+      if (scannerButton) {
+        scannerButton.disabled = !selectedProject;
+      }
+
+      if (typeof globalThis.updateSemgrepPdfButtonState === 'function') {
+        globalThis.updateSemgrepPdfButtonState();
+      }
     }
 
-    request('/api/projects/' + encodeURIComponent(projectKey) + '/branches', 'GET', null, function (response) {
-      if (!response.success || !Array.isArray(response.data)) {
-        Swal.fire({ icon: 'error', title: 'Error', text: response.message || 'No fue posible obtener las ramas.' });
+    function loadSemgrepProjects() {
+      request('/api/projects', 'GET', null, function (response) {
+        const projects = Array.isArray(response?.data) ? response.data : [];
+        const select = document.querySelector('#selSemgrepProject');
+        if (!select) return;
+
+        const options = ['<option value="" selected disabled>Seleccionar proyecto</option>']
+          .concat(projects.map(function (obj) {
+            const projectName = String(obj?.projectName || '').trim();
+            return `<option value="${projectName}">${projectName}</option>`;
+          }));
+
+        select.innerHTML = options.join('\n');
+        select.disabled = projects.length === 0;
+        updateSemgrepButtonState();
+      });
+    }
+
+    function openSemgrepDiffModal() {
+      const projectKey = (document.querySelector('#selSemgrepProject')?.value || '').trim();
+      if (!projectKey) {
+        Swal.fire({ icon: 'warning', title: 'Atención', text: 'Selecciona un nombre de proyecto antes de comparar ramas.' });
         return;
       }
 
-      const options = response.data.map(function (b) {
-        return '<option value="' + b + '">' + b + '</option>';
-      }).join('\n');
+      request('/api/projects/' + encodeURIComponent(projectKey) + '/branches', 'GET', null, function (response) {
+        if (!response.success || !Array.isArray(response.data)) {
+          Swal.fire({ icon: 'error', title: 'Error', text: response.message || 'No fue posible obtener las ramas.' });
+          return;
+        }
 
-      const selBase = document.getElementById('selSemgrepBase');
-      const selCompare = document.getElementById('selSemgrepCompare');
-      selBase.innerHTML = options;
-      selCompare.innerHTML = options;
+        const options = response.data.map(function (b) {
+          return '<option value="' + b + '">' + b + '</option>';
+        }).join('\n');
 
-      if (response.baseBranch && response.data.includes(response.baseBranch)) {
-        selBase.value = response.baseBranch;
-      }
-      if (response.currentBranch && response.data.includes(response.currentBranch)) {
-        selCompare.value = response.currentBranch;
-      }
+        const selBase = document.getElementById('selSemgrepBase');
+        const selCompare = document.getElementById('selSemgrepCompare');
+        selBase.innerHTML = options;
+        selCompare.innerHTML = options;
 
-      const modal = new bootstrap.Modal(document.getElementById('modalSemgrepDiff'));
-      modal.show();
-    });
-  }
+        if (response.baseBranch && response.data.includes(response.baseBranch)) {
+          selBase.value = response.baseBranch;
+        }
+        if (response.currentBranch && response.data.includes(response.currentBranch)) {
+          selCompare.value = response.currentBranch;
+        }
 
-  function confirmSemgrepDiff() {
-    const projectKey = (document.querySelector('#selSemgrepProject')?.value || '').trim();
-    const base = document.getElementById('selSemgrepBase').value;
-    const compare = document.getElementById('selSemgrepCompare').value;
-
-    if (!projectKey || !base || !compare) {
-      Swal.fire({ icon: 'warning', title: 'Atención', text: 'Selecciona proyecto y ramas para comparar.' });
-      return;
+        const modal = new bootstrap.Modal(document.getElementById('modalSemgrepDiff'));
+        modal.show();
+      });
     }
 
-    const query = '?base=' + encodeURIComponent(base) + '&compare=' + encodeURIComponent(compare);
-    request('/api/projects/' + encodeURIComponent(projectKey) + '/diff-files' + query, 'GET', null, function (response) {
-      if (!response.success || !Array.isArray(response.data)) {
-        Swal.fire({ icon: 'error', title: 'Error', text: response.message || 'No fue posible obtener diferencias.' });
+    function confirmSemgrepDiff() {
+      const projectKey = (document.querySelector('#selSemgrepProject')?.value || '').trim();
+      const base = document.getElementById('selSemgrepBase').value;
+      const compare = document.getElementById('selSemgrepCompare').value;
+
+      if (!projectKey || !base || !compare) {
+        Swal.fire({ icon: 'warning', title: 'Atención', text: 'Selecciona proyecto y ramas para comparar.' });
         return;
       }
 
-      const txtSources = document.getElementById('txtSemgrepSources');
-      txtSources.value = response.data.join('\n');
+      const query = '?base=' + encodeURIComponent(base) + '&compare=' + encodeURIComponent(compare);
+      request('/api/projects/' + encodeURIComponent(projectKey) + '/diff-files' + query, 'GET', null, function (response) {
+        if (!response.success || !Array.isArray(response.data)) {
+          Swal.fire({ icon: 'error', title: 'Error', text: response.message || 'No fue posible obtener diferencias.' });
+          return;
+        }
 
-      const modal = bootstrap.Modal.getInstance(document.getElementById('modalSemgrepDiff'));
-      if (modal) modal.hide();
+        const txtSources = document.getElementById('txtSemgrepSources');
+        txtSources.value = response.data.join('\n');
 
-      txtSources.focus();
-    });
-  }
-</script>
+        const modal = bootstrap.Modal.getInstance(document.getElementById('modalSemgrepDiff'));
+        if (modal) modal.hide();
+
+        txtSources.focus();
+      });
+    }
+  </script>
