@@ -27,6 +27,11 @@
       </ul>
       <ul class="navbar-nav ms-auto mb-2 mb-lg-0">
         <li class="nav-item">
+          <a class="nav-link <%= activePage === 'tools_info' ? 'active' : '' %>" aria-current="<%= activePage === 'tools_info' ? 'page' : 'false' %>" href="/tools_info">
+            <i class="bi bi-info-circle me-1"></i>
+          </a>
+        </li>
+        <li class="nav-item">
           <a class="nav-link <%= activePage === 'app_config' ? 'active' : '' %>" aria-current="<%= activePage === 'app_config' ? 'page' : 'false' %>" href="/app_config">
             <i class="bi bi-gear me-1"></i>          </a>
         </li>

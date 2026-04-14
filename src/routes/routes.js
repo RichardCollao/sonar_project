@@ -21,6 +21,7 @@ router.get('/gitleaks', gitleaksController.renderGitleaks);
 router.get('/sonar_config', sonarConfigController.renderSonarConfig);
 router.get('/semgrep_config', semgrepConfigController.renderSemgrepConfig);
 router.get('/app_config', appConfigController.renderAppConfig);
+router.get('/tools_info', appConfigController.renderToolsInfo);
 
 router.get('/api/projects', sonarController.getProjects);
 router.get('/api/sonar/report/pdf', sonarReportController.downloadSonarReportPdf);

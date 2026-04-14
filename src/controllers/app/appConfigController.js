@@ -4,4 +4,8 @@ const renderAppConfig = (req, res) => {
     res.render('app/index', { workspaceBaseDir: getWorkspaceBaseDir() });
 };
 
-module.exports = { renderAppConfig };
+const renderToolsInfo = (req, res) => {
+    res.render('app/tools');
+};
+
+module.exports = { renderAppConfig, renderToolsInfo };
