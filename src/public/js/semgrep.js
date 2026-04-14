@@ -258,6 +258,24 @@ function addPdfLine(doc, text, x, y, pageWidth, lineHeight) {
   return nextY;
 }
 
+function truncateTextToWidth(doc, text, maxWidth) {
+  const original = String(text || '');
+  if (!original) return '';
+
+  if (doc.getTextWidth(original) <= maxWidth) {
+    return original;
+  }
+
+  const ellipsis = '…';
+  let trimmed = original;
+
+  while (trimmed.length > 1 && doc.getTextWidth(trimmed + ellipsis) > maxWidth) {
+    trimmed = trimmed.slice(0, -1);
+  }
+
+  return trimmed + ellipsis;
+}
+
 function drawSectionChip(doc, text, x, y, width, height, style) {
   const fillColor = Array.isArray(style?.fillColor) ? style.fillColor : [241, 245, 249];
   const textColor = Array.isArray(style?.textColor) ? style.textColor : [51, 65, 85];
@@ -417,7 +435,16 @@ function downloadReportPdf() {
     doc.setTextColor(0, 0, 0);
 
     drawSectionChip(doc, severityStyle.label, cardX + 10, y + 3, 24, chipHeight, severityStyle);
-    drawSectionChip(doc, checkId, cardX + 36, y + 3, Math.max(24, doc.getTextWidth(checkId) + 6), chipHeight, {
+
+    const chipLeftX = cardX + 36;
+    const chipRightPadding = 4;
+    const maxChipWidth = cardWidth - (chipLeftX - cardX) - chipRightPadding;
+    const baseChipWidth = Math.max(24, doc.getTextWidth(checkId) + 6);
+    const finalChipWidth = Math.min(baseChipWidth, maxChipWidth);
+    const availableChipTextWidth = finalChipWidth - 5; // padding interno aproximado
+    const chipText = truncateTextToWidth(doc, checkId, availableChipTextWidth);
+
+    drawSectionChip(doc, chipText, chipLeftX, y + 3, finalChipWidth, chipHeight, {
       fillColor: [241, 245, 249],
       textColor: [51, 65, 85]
     });
