@@ -14,18 +14,19 @@ const REQUIRED_GLOBAL_FIELDS = [
   'sonarToken'
 ];
 
+const FRONTEND_SONAR_HOST_URL = 'http://localhost:9000';
+
 function renderSonarConfig(req, res) {
   res.render('sonar/sonar_config');
 }
 
 async function getGlobalConfig(req, res) {
   try {
-    const sonarHostUrl = getSonarHostUrl();
     const { bundle } = await getBundle();
 
     const data = {
       sonarToken: String(bundle?.sonarToken || '').trim(),
-      sonarHostUrl
+      sonarHostUrl: FRONTEND_SONAR_HOST_URL
     };
 
     return res.json({ success: true, data });

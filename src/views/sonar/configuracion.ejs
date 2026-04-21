@@ -37,7 +37,7 @@
         request('/api/sonar/global', 'GET', null, function (response) {
             const data = response?.data || {};
             document.getElementById('globalSonarToken').value = data.sonarToken || '';
-            window.globalSonarHostUrl = data.sonarHostUrl;
+            globalThis.globalSonarHostUrl = data.sonarHostUrl;
         });
     }
 
