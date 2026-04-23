@@ -1,8 +1,8 @@
 # Levantar este stack:
-# docker compose -f docker-compose.linux.yml up -d --force-recreate
+# docker compose -f docker-compose.yml up -d --force-recreate
 
 x-paths:
-  host_root: &host_root ${HOST_ROOT:-../..}
+  host_root: &host_root ${HOST_ROOT:-../..} # relativo al directorio del compose
 
 services:
   sonarqube:
@@ -20,7 +20,7 @@ services:
     # image: richardcollao/dev_utils:1.0.0
     build:
       context: ..                            # raíz del proyecto (dev_utils/)
-      dockerfile: docker/Dockerfile          # ruta relativa al build context
+      dockerfile: docker/Dockerfile
     container_name: dev_utils
     depends_on:
       - sonarqube
