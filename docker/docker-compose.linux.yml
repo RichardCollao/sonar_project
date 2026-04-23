@@ -1,0 +1,91 @@
+# Levantar este stack:
+# docker compose -f docker-compose.linux.yml up -d --force-recreate
+
+x-paths:
+  host_root: &host_root ${HOST_ROOT:-/home/richard/www}
+
+services:
+  sonarqube:
+    image: sonarqube:26.3.0.120487-community
+    container_name: sonarqube
+    ports:
+      - "9000:9000"
+    volumes:
+      - sonarqube_data:/opt/sonarqube/data
+      - sonarqube_logs:/opt/sonarqube/logs
+    networks:
+      - sonar_net
+
+  app:
+    # image: richardcollao/dev_utils:1.0.0
+    build:
+      context: Define la ruta raíz desde donde Docker busca archivos para COPY en el Dockerfile
+      context: *host_root                   # ruta absoluta válida en Linux
+      dockerfile: DockerProjects/DevUtils/Dockerfile # ruta relativa al build context
+    container_name: dev_utils
+    depends_on:
+      - sonarqube
+    ports:
+      - "3000:3000"
+    environment:
+      - NODE_ENV=production
+      - PORT=3000
+    volumes:
+      # Necesario para que el explorador de archivos (BASE_DIR=/workspace)
+      # pueda listar carpetas del host sin devolver HTTP 500.
+      - type: bind
+        source: *host_root
+        target: /workspace
+    networks:
+      - sonar_net
+
+  gitleaks:
+    image: zricethezav/gitleaks:v8.30.1
+    container_name: gitleaks
+    working_dir: /workspace
+    entrypoint: ["tail", "-f", "/dev/null"]
+    volumes:
+      - type: bind
+        source: *host_root
+        target: /workspace
+    networks:
+      - sonar_net
+
+  semgrep:
+    image: semgrep/semgrep:1.157.0
+    container_name: semgrep
+    working_dir: /workspace
+    entrypoint: ["tail", "-f", "/dev/null"]
+    volumes:
+      - type: bind
+        source: *host_root
+        target: /workspace
+    networks:
+      - sonar_net
+
+networks:
+  sonar_net:
+    driver: bridge
+
+volumes:
+  sonarqube_data:
+  sonarqube_logs:
+
+# TODO
+# 1. Instalar DefectDojo
+
+# Clonar el repo oficial y levantarlo con Docker/compose o Helm.
+# Entrar a la UI web y configurar usuario admin.
+# 2. Crear estructura básica
+
+# En la UI: crear Product Type → Product → Engagement para tu app.
+# 3. Ejecutar Semgrep
+
+# En CI o local: semgrep scan --config=... --json -o semgrep-report.json.
+# 4. Probar importación manual
+
+# En el Engagement: “Import Scan” → tipo “Semgrep” → subir semgrep-report.json → verificar findings.
+# 5. Automatizar en CI
+
+# Paso del pipeline: ejecutar Semgrep y guardar semgrep-report.json.
+# Paso siguiente: script curl/Python que llame a la API de DefectDojo (tipo semgrep) y suba el reporte al Engagement correspondiente.
