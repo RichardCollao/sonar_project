@@ -1,6 +1,8 @@
 # Levantar este stack:
 # docker compose -f docker-compose.yml up -d --force-recreate
 
+name: dev_utils
+
 x-paths:
   host_root: &host_root ${HOST_ROOT:-../..} # relativo al directorio del compose
 
